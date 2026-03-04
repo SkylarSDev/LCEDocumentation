@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tiles &amp; Items - LCE Documentation</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <button class="hamburger" aria-label="Toggle navigation"><span></span><span></span><span></span></button>
+  <div class="site-wrapper">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <h1 class="sidebar-title">LCE Docs</h1>
+        <p class="sidebar-subtitle">Legacy Console Edition</p>
+      </div>
+      <div class="sidebar-search">
+        <input type="text" placeholder="Search docs (Ctrl+K)" id="sidebar-search-input" autocomplete="off">
+      </div>
+      <nav class="sidebar-nav">
+        <div class="nav-section">
+          <div class="nav-section-title">Overview</div>
+          <a href="index.html" class="nav-link">Home</a>
+          <a href="getting-started.html" class="nav-link">Getting Started</a>
+          <a href="architecture.html" class="nav-link">Architecture</a>
+        </div>
+        <div class="nav-section">
+          <div class="nav-section-title">Systems</div>
+          <a href="rendering.html" class="nav-link">Rendering</a>
+          <a href="networking.html" class="nav-link">Networking</a>
+          <a href="world-gen.html" class="nav-link">World Generation</a>
+          <a href="entities.html" class="nav-link">Entities</a>
+          <a href="tiles-items.html" class="nav-link active">Tiles &amp; Items</a>
+          <a href="ui-system.html" class="nav-link">UI System</a>
+          <a href="audio.html" class="nav-link">Audio</a>
+          <a href="storage.html" class="nav-link">Storage</a>
+          <a href="gameplay.html" class="nav-link">Gameplay</a>
+          <a href="platforms.html" class="nav-link">Platforms</a>
+        </div>
+      </nav>
+    </aside>
+    <main class="main-content">
+
+      <!-- Breadcrumb -->
+      <div class="breadcrumbs">
+        <a href="index.html">Home</a>
+        <span class="separator">/</span>
+        <span class="current">Tiles &amp; Items</span>
+      </div>
+
+      <h1>Tiles &amp; Items</h1>
+
+      <!-- ================================================================
+           Overview
+           ================================================================ -->
+      <section id="overview">
+        <h2>Overview</h2>
+        <p>The tile system represents all blocks in the world with a global registry of 4096 slots. Items represent all holdable objects with a 32000-slot registry. TileEntities add persistent data to specific block types. TileItems bridge the gap between items and placeable blocks.</p>
+      </section>
+
+      <!-- ================================================================
+           Tile Base Class
+           ================================================================ -->
+      <section id="tile-class">
+        <h2>Tile Base Class</h2>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">Tile</span>
+          </div>
+          <div class="class-meta">Minecraft.World/Tile.h</div>
+          <p class="class-description">Base class for all block types in the world. Each tile occupies a slot in the global <code>tiles[4096]</code> registry and defines the block's physical properties, rendering behavior, and interaction logic. Tiles are stateless singletons &mdash; per-position data is stored in the level's block/data arrays or in associated TileEntity instances.</p>
+
+          <h4>Static Members</h4>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr><th>Member</th><th>Type</th><th>Description</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>tiles[4096]</code></td><td><code>Tile*</code></td><td>Global registry of all tile instances indexed by tile ID</td></tr>
+                <tr><td><code>solid[]</code></td><td><code>bool</code></td><td>Per-ID lookup: whether the tile is solid (blocks movement)</td></tr>
+                <tr><td><code>lightBlock[]</code></td><td><code>int</code></td><td>Per-ID lookup: amount of light blocked by this tile</td></tr>
+                <tr><td><code>lightEmission[]</code></td><td><code>int</code></td><td>Per-ID lookup: amount of light emitted by this tile</td></tr>
+                <tr><td><code>SOUND_NORMAL</code></td><td><code>SoundType</code></td><td>Default block sound (stone-like)</td></tr>
+                <tr><td><code>SOUND_WOOD</code></td><td><code>SoundType</code></td><td>Wooden block sound</td></tr>
+                <tr><td><code>SOUND_STONE</code></td><td><code>SoundType</code></td><td>Stone block sound</td></tr>
+                <tr><td><code>rock_Id = 1</code></td><td><code>int</code></td><td>Stone tile ID constant</td></tr>
+                <tr><td><code>grass_Id = 2</code></td><td><code>int</code></td><td>Grass tile ID constant</td></tr>
+                <tr><td colspan="3"><em>Additional SoundType constants (SOUND_GRAVEL, SOUND_SAND, SOUND_CLOTH, SOUND_GLASS, SOUND_METAL, SOUND_SNOW, SOUND_LADDER) and tile ID constants for all registered blocks.</em></td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h4>Members</h4>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr><th>Member</th><th>Type</th><th>Description</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>id</code></td><td><code>int</code></td><td>Unique tile identifier (index into <code>tiles[]</code>)</td></tr>
+                <tr><td><code>material</code></td><td><code>Material*</code></td><td>Material type governing tool effectiveness, flammability, and movement</td></tr>
+                <tr><td><code>destroySpeed</code></td><td><code>float</code></td><td>Base time to break the block (higher = slower)</td></tr>
+                <tr><td><code>explosionResistance</code></td><td><code>float</code></td><td>Resistance to explosion damage</td></tr>
+                <tr><td><code>soundType</code></td><td><code>SoundType*</code></td><td>Sound set used for place, break, and step sounds</td></tr>
+                <tr><td><code>gravity</code></td><td><code>float</code></td><td>Gravity modifier for the block's particle effects</td></tr>
+                <tr><td><code>friction</code></td><td><code>float</code></td><td>Surface friction (default 0.6; ice uses lower values)</td></tr>
+                <tr><td><code>icon</code></td><td><code>Icon*</code></td><td>Texture icon for inventory and particle rendering</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h4>Key Methods</h4>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr><th>Method</th><th>Description</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>isCubeShaped() &rarr; bool</code></td><td>Returns whether this tile renders as a full cube</td></tr>
+                <tr><td><code>getRenderShape() &rarr; int</code></td><td>Returns the render shape ID used by TileRenderer to select geometry</td></tr>
+                <tr><td><code>getDestroySpeed(Level*, int, int, int) &rarr; float</code></td><td>Returns the destroy speed at the given position (may vary by metadata)</td></tr>
+                <tr><td><code>shouldRenderFace(LevelSource*, int, int, int, int) &rarr; bool</code></td><td>Returns whether the specified face should be rendered based on neighbor occlusion</td></tr>
+                <tr><td><code>getTexture(LevelSource*, int, int, int, int) &rarr; Icon*</code></td><td>Returns the texture icon for the given face at the given position</td></tr>
+                <tr><td><code>getTileAABB(Level*, int, int, int) &rarr; AABB*</code></td><td>Returns the axis-aligned bounding box for collision at the given position</td></tr>
+                <tr><td><code>mayPlace(Level*, int, int, int) &rarr; bool</code></td><td>Returns whether the tile can be placed at the given position</td></tr>
+                <tr><td><code>tick(Level*, int, int, int, Random*)</code></td><td>Called on random tick for growth, decay, and other periodic behavior</td></tr>
+                <tr><td><code>use(Level*, int, int, int, shared_ptr&lt;Player&gt;, ...) &rarr; bool</code></td><td>Handles player interaction (right-click) with the block</td></tr>
+                <tr><td><code>neighborChanged(Level*, int, int, int, int)</code></td><td>Called when an adjacent block changes (redstone updates, support checks)</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================================================================
+           All 97 Tile Types
+           ================================================================ -->
+      <section id="tile-types">
+        <h2>All 97 Tile Types</h2>
+        <p>Every block in the game is implemented as a <code>Tile</code> subclass. The following tables list all 97 tile types organized by category.</p>
+
+        <details>
+          <summary>Natural Blocks (12)</summary>
+          <div class="details-content">
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr><th>Class</th><th>Description</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td><code>AirTile</code></td><td>Empty space, invisible</td></tr>
+                  <tr><td><code>DirtTile</code></td><td>Basic terrain block</td></tr>
+                  <tr><td><code>GrassTile</code></td><td>Grass-covered dirt, spreads to adjacent dirt blocks in sufficient light</td></tr>
+                  <tr><td><code>StoneTile</code></td><td>Stone, drops cobblestone when mined</td></tr>
+                  <tr><td><code>SandStoneTile</code></td><td>Compressed sand, found beneath desert surfaces</td></tr>
+                  <tr><td><code>GravelTile</code></td><td>Falling block, has a chance to drop flint</td></tr>
+                  <tr><td><code>ClayTile</code></td><td>Found near water, drops clay balls when mined</td></tr>
+                  <tr><td><code>OreTile</code></td><td>Various ore types (coal, iron, gold, diamond, lapis, emerald, redstone)</td></tr>
+                  <tr><td><code>IceTile</code></td><td>Frozen water, slippery surface with reduced friction</td></tr>
+                  <tr><td><code>SnowTile</code></td><td>Snow layer block, accumulates in cold biomes</td></tr>
+                  <tr><td><code>MycelTile</code></td><td>Mushroom island surface, supports mushroom growth in any light</td></tr>
+                  <tr><td><code>CoralTile</code></td><td>Decorative coral block</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </details>
+
+        <details>
+          <summary>Wood &amp; Plant Blocks (16)</summary>
+          <div class="details-content">
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr><th>Class</th><th>Description</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td><code>TreeTile</code></td><td>Log block (oak, spruce, birch, jungle) with directional placement</td></tr>
+                  <tr><td><code>WoodTile</code></td><td>Planks crafted from logs</td></tr>
+                  <tr><td><code>LeafTile</code></td><td>Tree leaves, decay when unsupported by a log within range</td></tr>
+                  <tr><td><code>CactusTile</code></td><td>Desert plant, damages entities on contact</td></tr>
+                  <tr><td><code>ReedTile</code></td><td>Sugar cane, grows near water up to 3 blocks tall</td></tr>
+                  <tr><td><code>VineTile</code></td><td>Climbable plant that attaches to walls and spreads</td></tr>
+                  <tr><td><code>MelonTile</code></td><td>Melon block, drops melon slices when broken</td></tr>
+                  <tr><td><code>PumpkinTile</code></td><td>Pumpkin block, can be carved into a jack-o-lantern</td></tr>
+                  <tr><td><code>CocoaTile</code></td><td>Cocoa beans growing on jungle tree logs</td></tr>
+                  <tr><td><code>StemTile</code></td><td>Melon/pumpkin stem, grows and connects to adjacent fruit</td></tr>
+                  <tr><td><code>CropTile</code></td><td>Wheat, carrot, and potato crops with growth stages</td></tr>
+                  <tr><td><code>CarrotTile</code></td><td>Carrot crop with growth stages</td></tr>
+                  <tr><td><code>PotatoTile</code></td><td>Potato crop with growth stages</td></tr>
+                  <tr><td><code>DeadBushTile</code></td><td>Desert decoration, breaks when support block is removed</td></tr>
+                  <tr><td><code>NetherStalkTile</code></td><td>Nether wart crop, grows on soul sand</td></tr>
+                  <tr><td><code>WaterLilyTile</code></td><td>Lily pad that sits on the water surface</td></tr>
+                  <tr><td><code>HugeMushroomTile</code></td><td>Large mushroom cap and stem blocks</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </details>
+
+        <details>
+          <summary>Building Blocks (12)</summary>
+          <div class="details-content">
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr><th>Class</th><th>Description</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td><code>MetalTile</code></td><td>Iron, gold, diamond, and emerald blocks (compressed ore storage)</td></tr>
+                  <tr><td><code>GlassTile</code></td><td>Transparent glass block, does not drop when broken</td></tr>
+                  <tr><td><code>BookshelfTile</code></td><td>Decoration block that boosts nearby enchanting tables</td></tr>
+                  <tr><td><code>ClothTile</code></td><td>Wool with 16 dye color variants</td></tr>
+                  <tr><td><code>WoolCarpetTile</code></td><td>Thin wool layer placed on floors, 16 color variants</td></tr>
+                  <tr><td><code>QuartzBlockTile</code></td><td>Nether quartz variants (smooth, chiseled, pillar)</td></tr>
+                  <tr><td><code>SmoothStoneBrickTile</code></td><td>Stone brick variants (normal, mossy, cracked, chiseled)</td></tr>
+                  <tr><td><code>WallTile</code></td><td>Cobblestone and mossy cobblestone wall</td></tr>
+                  <tr><td><code>StairTile</code></td><td>Staircase block with orientation-aware placement</td></tr>
+                  <tr><td><code>StoneSlabTile</code></td><td>Half-height stone slab, supports top/bottom placement</td></tr>
+                  <tr><td><code>WoodSlabTile</code></td><td>Half-height wood slab, supports top/bottom placement</td></tr>
+                  <tr><td><code>HalfSlabTile</code></td><td>Generic half slab base class</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </details>
+
+        <details>
+          <summary>Redstone (9)</summary>
+          <div class="details-content">
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr><th>Class</th><th>Description</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td><code>RedStoneDustTile</code></td><td>Redstone wire, transmits power between components</td></tr>
+                  <tr><td><code>RedStoneOreTile</code></td><td>Redstone ore, glows when touched or struck</td></tr>
+                  <tr><td><code>RedlightTile</code></td><td>Redstone lamp, toggles light on/off with redstone signal</td></tr>
+                  <tr><td><code>NotGateTile</code></td><td>Redstone torch, inverts signal</td></tr>
+                  <tr><td><code>DiodeTile</code></td><td>Repeater and comparator, adds delay or compares signals</td></tr>
+                  <tr><td><code>LeverTile</code></td><td>Toggle switch, maintains state until flipped again</td></tr>
+                  <tr><td><code>ButtonTile</code></td><td>Momentary switch, emits a pulse when pressed</td></tr>
+                  <tr><td><code>PressurePlateTile</code></td><td>Weight-activated switch, triggers when an entity stands on it</td></tr>
+                  <tr><td><code>DetectorRailTile</code></td><td>Minecart detector, emits redstone signal when a cart passes</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </details>
+
+        <details>
+          <summary>Mechanisms (4)</summary>
+          <div class="details-content">
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr><th>Class</th><th>Description</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td><code>PistonBaseTile</code></td><td>Piston base, extends and retracts to push/pull blocks</td></tr>
+                  <tr><td><code>PistonExtensionTile</code></td><td>Extended piston arm, placeholder block for the piston head</td></tr>
+                  <tr><td><code>DispenserTile</code></td><td>Dispenses or shoots items when activated by redstone</td></tr>
+                  <tr><td><code>TntTile</code></td><td>Explosive block, detonates when ignited or powered</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </details>
+
+        <details>
+          <summary>Containers (7)</summary>
+          <div class="details-content">
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr><th>Class</th><th>Description</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td><code>ChestTile</code></td><td>Storage container with 27 inventory slots, can form double chests</td></tr>
+                  <tr><td><code>FurnaceTile</code></td><td>Smelting interface with input, fuel, and output slots</td></tr>
+                  <tr><td><code>BrewingStandTile</code></td><td>Potion brewing station with ingredient and bottle slots</td></tr>
+                  <tr><td><code>EnchantmentTableTile</code></td><td>Item enchanting block, boosted by nearby bookshelves</td></tr>
+                  <tr><td><code>EnderChestTile</code></td><td>Shared ender storage, per-player inventory accessible from any ender chest</td></tr>
+                  <tr><td><code>WorkbenchTile</code></td><td>3&times;3 crafting grid for recipe-based item creation</td></tr>
+                  <tr><td><code>AnvilTile</code></td><td>Item repair, renaming, and enchantment combination</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </details>
+
+        <details>
+          <summary>Access &amp; Movement (7)</summary>
+          <div class="details-content">
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr><th>Class</th><th>Description</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td><code>DoorTile</code></td><td>Openable door (wood and iron variants), occupies two vertical blocks</td></tr>
+                  <tr><td><code>TrapDoorTile</code></td><td>Horizontal trapdoor, opens and closes on a hinge</td></tr>
+                  <tr><td><code>FenceTile</code></td><td>1.5-block high barrier that connects to adjacent fences</td></tr>
+                  <tr><td><code>FenceGateTile</code></td><td>Openable fence section, integrates with fence connections</td></tr>
+                  <tr><td><code>LadderTile</code></td><td>Climbable wall attachment for vertical traversal</td></tr>
+                  <tr><td><code>RailTile</code></td><td>Minecart tracks with straight, curved, and powered variants</td></tr>
+                  <tr><td><code>ThinFenceTile</code></td><td>Glass pane and iron bars, thin connecting barrier</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </details>
+
+        <details>
+          <summary>Liquids (2)</summary>
+          <div class="details-content">
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr><th>Class</th><th>Description</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td><code>LiquidTile</code></td><td>Water and lava fluid simulation with flow and level mechanics</td></tr>
+                  <tr><td><code>SpringTile</code></td><td>Liquid source block, infinite water source when adjacent to two others</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </details>
+
+        <details>
+          <summary>Decorative (8)</summary>
+          <div class="details-content">
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr><th>Class</th><th>Description</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td><code>FlowerPotTile</code></td><td>Holds small plants and flowers as decoration</td></tr>
+                  <tr><td><code>SignTile</code></td><td>Writable sign with 4 lines of text, wall or post placement</td></tr>
+                  <tr><td><code>BedTile</code></td><td>Sleep point and spawn anchor, occupies two blocks</td></tr>
+                  <tr><td><code>CakeTile</code></td><td>Edible block with 6 slices, consumed in place</td></tr>
+                  <tr><td><code>TorchTile</code></td><td>Light source, attaches to walls or sits on top of blocks</td></tr>
+                  <tr><td><code>SkullTile</code></td><td>Decorative skull or head block with rotation</td></tr>
+                  <tr><td><code>RecordPlayerTile</code></td><td>Jukebox for playing music discs</td></tr>
+                  <tr><td><code>MusicTile</code></td><td>Note block, plays pitched notes when activated</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </details>
+
+        <details>
+          <summary>Nether (4)</summary>
+          <div class="details-content">
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr><th>Class</th><th>Description</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td><code>HellSandTile</code></td><td>Soul sand, slows entities walking on it</td></tr>
+                  <tr><td><code>HellStoneTile</code></td><td>Netherrack, burns forever when ignited</td></tr>
+                  <tr><td><code>LightGemTile</code></td><td>Glowstone, bright light source found in the Nether</td></tr>
+                  <tr><td><code>PortalTile</code></td><td>Nether portal block, transports entities between dimensions</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </details>
+
+        <details>
+          <summary>Special (10)</summary>
+          <div class="details-content">
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr><th>Class</th><th>Description</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td><code>FireTile</code></td><td>Fire spread and damage, consumes flammable blocks</td></tr>
+                  <tr><td><code>MobSpawnerTile</code></td><td>Spawns mobs at regular intervals within range</td></tr>
+                  <tr><td><code>WebTile</code></td><td>Slows entities passing through it</td></tr>
+                  <tr><td><code>FallingTile</code></td><td>Sand and gravel physics, falls when unsupported</td></tr>
+                  <tr><td><code>ObsidianTile</code></td><td>Blast-resistant block, required for nether portal frames</td></tr>
+                  <tr><td><code>TheEndPortalFrameTile</code></td><td>End portal frame block, holds Eyes of Ender to activate the portal</td></tr>
+                  <tr><td><code>TransparentTile</code></td><td>Base class for transparent blocks (non-occluding neighbors)</td></tr>
+                  <tr><td><code>HalfTransparentTile</code></td><td>Base class for semi-transparent blocks (e.g., leaves, ice)</td></tr>
+                  <tr><td><code>DirectionalTile</code></td><td>Base class for directional blocks that store facing in metadata</td></tr>
+                  <tr><td><code>EntityTile</code></td><td>Base class for blocks that have an associated TileEntity</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </details>
+      </section>
+
+      <!-- ================================================================
+           TileEntity Classes
+           ================================================================ -->
+      <section id="tile-entity">
+        <h2>TileEntity Classes</h2>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">TileEntity</span>
+          </div>
+          <div class="class-meta">Minecraft.World/TileEntity.h</div>
+          <p class="class-description">Base class for blocks that store additional data beyond tile ID and metadata. TileEntities are serialized with the chunk and ticked independently of the block's random tick. Each TileEntity holds its world position and a back-reference to the level. Subclasses implement <code>load()</code> and <code>save()</code> for NBT serialization, and optionally override <code>tick()</code> for per-frame logic.</p>
+        </div>
+
+        <h3>All 11 TileEntity Types</h3>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr><th>TileEntity Class</th><th>Block</th><th>Data Stored</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>ChestTileEntity</code></td><td>Chest</td><td>27-slot inventory</td></tr>
+              <tr><td><code>FurnaceTileEntity</code></td><td>Furnace</td><td>Input, fuel, and output slots; smelt progress timer</td></tr>
+              <tr><td><code>DispenserTileEntity</code></td><td>Dispenser</td><td>9-slot inventory</td></tr>
+              <tr><td><code>BrewingStandTileEntity</code></td><td>Brewing Stand</td><td>4 slots (3 bottles + 1 ingredient), brew timer</td></tr>
+              <tr><td><code>MobSpawnerTileEntity</code></td><td>Mob Spawner</td><td>Mob type, spawn delay, activation range</td></tr>
+              <tr><td><code>SignTileEntity</code></td><td>Sign</td><td>4 lines of text</td></tr>
+              <tr><td><code>MusicTileEntity</code></td><td>Note Block</td><td>Note pitch (0&ndash;24)</td></tr>
+              <tr><td><code>SkullTileEntity</code></td><td>Skull</td><td>Skull type, rotation, owner profile</td></tr>
+              <tr><td><code>EnderChestTileEntity</code></td><td>Ender Chest</td><td>Shared per-player inventory (no local storage)</td></tr>
+              <tr><td><code>TheEndPortalTileEntity</code></td><td>End Portal</td><td>Portal activation state</td></tr>
+              <tr><td><code>EnchantmentTableEntity</code></td><td>Enchanting Table</td><td>Book animation state (open angle, page turn)</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ================================================================
+           Item Base Class
+           ================================================================ -->
+      <section id="item-class">
+        <h2>Item Base Class</h2>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">Item</span>
+            <span class="inheritance-badge">extends <span class="parent-class">enable_shared_from_this&lt;Item&gt;</span></span>
+          </div>
+          <div class="class-meta">Minecraft.World/Item.h</div>
+          <p class="class-description">Base class for all holdable objects. Items occupy slots in the global <code>items[]</code> array (up to 32000 entries). Unlike tiles, items are not placed directly in the world &mdash; they exist in inventories and as dropped entities. TileItem subclasses bridge the gap between items and placeable blocks.</p>
+
+          <h4>Static Members</h4>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr><th>Member</th><th>Type</th><th>Description</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>items[]</code></td><td><code>ItemArray (32000 max)</code></td><td>Global registry of all item instances indexed by item ID</td></tr>
+                <tr><td><code>shovel_iron_Id = 256</code></td><td><code>int</code></td><td>Iron shovel ID constant (first non-tile item ID)</td></tr>
+                <tr><td colspan="3"><em>Additional item pointers and ID constants for all registered items.</em></td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h4>Nested Class: Tier</h4>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr><th>Tier</th><th>Speed</th><th>Uses</th><th>Damage</th><th>Enchantment</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>wood</code></td><td>2.0</td><td>59</td><td>0</td><td>15</td></tr>
+                <tr><td><code>stone</code></td><td>4.0</td><td>131</td><td>1</td><td>5</td></tr>
+                <tr><td><code>iron</code></td><td>6.0</td><td>250</td><td>2</td><td>14</td></tr>
+                <tr><td><code>diamond</code></td><td>8.0</td><td>1561</td><td>3</td><td>10</td></tr>
+                <tr><td><code>gold</code></td><td>12.0</td><td>32</td><td>0</td><td>22</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h4>Members</h4>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr><th>Member</th><th>Type</th><th>Description</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>id</code></td><td><code>const int</code></td><td>Unique item identifier (index into <code>items[]</code>)</td></tr>
+                <tr><td><code>maxStackSize</code></td><td><code>int</code></td><td>Maximum number of this item per inventory slot (default 64)</td></tr>
+                <tr><td><code>maxDamage</code></td><td><code>int</code></td><td>Maximum durability for damageable items (0 = not damageable)</td></tr>
+                <tr><td><code>icon</code></td><td><code>Icon*</code></td><td>Texture icon for inventory rendering</td></tr>
+                <tr><td><code>m_iBaseItemType</code></td><td><code>int</code></td><td>Base item type classification</td></tr>
+                <tr><td><code>m_iMaterial</code></td><td><code>int</code></td><td>Material type index for tool effectiveness</td></tr>
+                <tr><td><code>m_handEquipped</code></td><td><code>bool</code></td><td>Whether the item renders as hand-equipped (tool-like)</td></tr>
+                <tr><td><code>m_isStackedByData</code></td><td><code>bool</code></td><td>Whether items with different data values stack separately</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h4>Key Methods</h4>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr><th>Method</th><th>Description</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>getIcon(int) &rarr; Icon*</code></td><td>Returns the texture icon for the given damage/data value</td></tr>
+                <tr><td><code>useOn(ItemInstance, Level, int, int, int, int, ...) &rarr; bool</code></td><td>Called when the item is used on a block face (e.g., placing a block)</td></tr>
+                <tr><td><code>use(ItemInstance, Level, Player) &rarr; ItemInstance</code></td><td>Called when the item is used in the air (e.g., eating food, throwing)</td></tr>
+                <tr><td><code>getMaxStackSize() &rarr; int</code></td><td>Returns the maximum stack size for this item</td></tr>
+                <tr><td><code>getMaxDamage() &rarr; int</code></td><td>Returns the maximum durability for this item</td></tr>
+                <tr><td><code>hurtEnemy(ItemInstance, Mob, Mob) &rarr; bool</code></td><td>Called when the item is used to attack a mob (durability loss)</td></tr>
+                <tr><td><code>mineBlock(ItemInstance, Level, int, int, int, int, ...) &rarr; bool</code></td><td>Called when the item is used to mine a block (durability loss)</td></tr>
+                <tr><td><code>getDescription() &rarr; LPCWSTR</code></td><td>Returns the localized display name of the item</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================================================================
+           All 47 Item Types
+           ================================================================ -->
+      <section id="item-types">
+        <h2>All 47 Item Types</h2>
+        <p>All item types in the game, organized by category. Each extends the <code>Item</code> base class with specialized behavior.</p>
+
+        <details>
+          <summary>Tools (8)</summary>
+          <div class="details-content">
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr><th>Class</th><th>Description</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td><code>PickaxeItem</code></td><td>Mining tool, effective against stone and ore blocks</td></tr>
+                  <tr><td><code>ShovelItem</code></td><td>Digging tool, effective against dirt, sand, and gravel</td></tr>
+                  <tr><td><code>HatchetItem</code></td><td>Axe tool, effective against wood blocks</td></tr>
+                  <tr><td><code>HoeItem</code></td><td>Farming tool, converts dirt and grass to farmland</td></tr>
+                  <tr><td><code>ShearsItem</code></td><td>Shears for harvesting wool, leaves, and tall grass</td></tr>
+                  <tr><td><code>FishingRodItem</code></td><td>Fishing rod, casts a bobber to catch fish</td></tr>
+                  <tr><td><code>FlintAndSteelItem</code></td><td>Ignition tool, sets fire to blocks</td></tr>
+                  <tr><td><code>CarrotOnAStickItem</code></td><td>Carrot on a stick, controls saddled pigs</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </details>
+
+        <details>
+          <summary>Weapons (2)</summary>
+          <div class="details-content">
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr><th>Class</th><th>Description</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td><code>WeaponItem</code> (SwordItem)</td><td>Melee weapon with tier-based damage and sweep attack</td></tr>
+                  <tr><td><code>BowItem</code></td><td>Ranged weapon, fires arrows with charge-based power</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </details>
+
+        <details>
+          <summary>Armor (1)</summary>
+          <div class="details-content">
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr><th>Class</th><th>Description</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td><code>ArmorItem</code></td><td>Wearable protection (helmet, chestplate, leggings, boots) with tier-based defense values</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </details>
+
+        <details>
+          <summary>Food (5)</summary>
+          <div class="details-content">
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr><th>Class</th><th>Description</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td><code>FoodItem</code></td><td>Base consumable food item, restores hunger and saturation</td></tr>
+                  <tr><td><code>BowlFoodItem</code></td><td>Food served in a bowl (mushroom stew), returns empty bowl</td></tr>
+                  <tr><td><code>SeedFoodItem</code></td><td>Edible seed item (e.g., melon seeds that can also be planted)</td></tr>
+                  <tr><td><code>GoldenAppleItem</code></td><td>Golden apple with special potion effects on consumption</td></tr>
+                  <tr><td><code>MilkBucketItem</code></td><td>Milk bucket, clears all status effects when consumed</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </details>
+
+        <details>
+          <summary>Throwables (5)</summary>
+          <div class="details-content">
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr><th>Class</th><th>Description</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td><code>SnowballItem</code></td><td>Throwable snowball projectile, knocks back mobs</td></tr>
+                  <tr><td><code>EggItem</code></td><td>Throwable egg, chance to spawn a chicken on impact</td></tr>
+                  <tr><td><code>EnderpearlItem</code></td><td>Throwable ender pearl, teleports the player on impact</td></tr>
+                  <tr><td><code>ExperienceItem</code></td><td>Bottle o' Enchanting, releases experience orbs on impact</td></tr>
+                  <tr><td><code>FireChargeItem</code></td><td>Fire charge, ignites blocks on impact</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </details>
+
+        <details>
+          <summary>Placeable (7)</summary>
+          <div class="details-content">
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr><th>Class</th><th>Description</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td><code>BedItem</code></td><td>Places a bed block (occupies two blocks)</td></tr>
+                  <tr><td><code>BoatItem</code></td><td>Places a boat entity on water</td></tr>
+                  <tr><td><code>DoorItem</code></td><td>Places a door block (occupies two vertical blocks)</td></tr>
+                  <tr><td><code>SignItem</code></td><td>Places a sign block (wall or standing)</td></tr>
+                  <tr><td><code>MinecartItem</code></td><td>Places a minecart entity on rails</td></tr>
+                  <tr><td><code>SaddleItem</code></td><td>Equips a saddle on pigs and horses</td></tr>
+                  <tr><td><code>MonsterPlacerItem</code></td><td>Spawn egg, spawns a mob entity of the specified type</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </details>
+
+        <details>
+          <summary>Materials (3)</summary>
+          <div class="details-content">
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr><th>Class</th><th>Description</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td><code>CoalItem</code></td><td>Coal and charcoal, fuel source and crafting ingredient</td></tr>
+                  <tr><td><code>DyePowderItem</code></td><td>Dye items (16 colors) including bone meal, lapis, and ink sac</td></tr>
+                  <tr><td><code>RedStoneItem</code></td><td>Redstone dust item, places as redstone wire</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </details>
+
+        <details>
+          <summary>Utility (11)</summary>
+          <div class="details-content">
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr><th>Class</th><th>Description</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td><code>BucketItem</code></td><td>Bucket for picking up and placing water and lava</td></tr>
+                  <tr><td><code>BottleItem</code></td><td>Glass bottle, fills with water for potion brewing</td></tr>
+                  <tr><td><code>MapItem</code></td><td>Map item, renders explored terrain</td></tr>
+                  <tr><td><code>CompassItem</code></td><td>Compass, points toward the world spawn point</td></tr>
+                  <tr><td><code>ClockItem</code></td><td>Clock, displays the current time of day</td></tr>
+                  <tr><td><code>BookItem</code></td><td>Book item, crafting ingredient for bookshelves and enchanting tables</td></tr>
+                  <tr><td><code>EnchantedBookItem</code></td><td>Enchanted book, stores enchantments for anvil application</td></tr>
+                  <tr><td><code>PotionItem</code></td><td>Potion item (drinkable and splash variants) with effect data</td></tr>
+                  <tr><td><code>RecordingItem</code></td><td>Music disc, plays in jukeboxes</td></tr>
+                  <tr><td><code>SkullItem</code></td><td>Skull/head item, places as a decorative skull block</td></tr>
+                  <tr><td><code>SeedItem</code></td><td>Seed item, plants crops on farmland</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </details>
+
+        <details>
+          <summary>TileItems (14)</summary>
+          <div class="details-content">
+            <p>TileItems bridge the gap between the item system and placeable blocks. Each TileItem wraps a corresponding Tile and handles placement logic, inventory icons, and data value mapping.</p>
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr><th>Class</th><th>Description</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td><code>TileItem</code></td><td>Base TileItem class, wraps a Tile for inventory representation</td></tr>
+                  <tr><td><code>AuxDataTileItem</code></td><td>TileItem that preserves auxiliary data values (metadata) when placed</td></tr>
+                  <tr><td><code>ClothTileItem</code></td><td>TileItem for wool blocks with 16 color variants</td></tr>
+                  <tr><td><code>ColoredTileItem</code></td><td>Generic TileItem for blocks with color-based data values</td></tr>
+                  <tr><td><code>LeafTileItem</code></td><td>TileItem for leaf blocks with tree type variants</td></tr>
+                  <tr><td><code>MultiTextureTileItem</code></td><td>TileItem for blocks with multiple texture variants by data value</td></tr>
+                  <tr><td><code>PistonTileItem</code></td><td>TileItem for piston blocks (normal and sticky)</td></tr>
+                  <tr><td><code>SaplingTileItem</code></td><td>TileItem for sapling blocks with tree type variants</td></tr>
+                  <tr><td><code>SmoothStoneBrickTileItem</code></td><td>TileItem for stone brick variants (normal, mossy, cracked, chiseled)</td></tr>
+                  <tr><td><code>StoneMonsterTileItem</code></td><td>TileItem for monster egg (silverfish) stone blocks</td></tr>
+                  <tr><td><code>StoneSlabTileItem</code></td><td>TileItem for stone slab variants with material types</td></tr>
+                  <tr><td><code>TreeTileItem</code></td><td>TileItem for log blocks with tree type variants</td></tr>
+                  <tr><td><code>WaterLilyTileItem</code></td><td>TileItem for lily pads with water-surface placement logic</td></tr>
+                  <tr><td><code>AnvilTileItem</code></td><td>TileItem for anvil blocks with damage state variants</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </details>
+      </section>
+
+      <footer class="site-footer"><p>LCE Documentation &mdash; Generated for the LCEMP project by notpies</p></footer>
+    </main>
+  </div>
+  <div class="search-overlay" id="search-overlay"><div class="search-modal"><input type="text" class="search-input-large" id="search-input" placeholder="Search documentation..." autocomplete="off"><div class="search-results" id="search-results"></div></div></div>
+  <script src="js/nav.js"></script>
+  <script src="js/search.js"></script>
+</body>
+</html>

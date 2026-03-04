@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Getting Started - LCE Documentation</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <button class="hamburger" aria-label="Toggle navigation">
+    <span></span><span></span><span></span>
+  </button>
+  <div class="site-wrapper">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <h1 class="sidebar-title">LCE Docs</h1>
+        <p class="sidebar-subtitle">Legacy Console Edition</p>
+      </div>
+      <div class="sidebar-search">
+        <input type="text" placeholder="Search docs (Ctrl+K)" id="sidebar-search-input" autocomplete="off">
+      </div>
+      <nav class="sidebar-nav">
+        <div class="nav-section">
+          <div class="nav-section-title">Overview</div>
+          <a href="index.html" class="nav-link">Home</a>
+          <a href="getting-started.html" class="nav-link active">Getting Started</a>
+          <a href="architecture.html" class="nav-link">Architecture</a>
+        </div>
+        <div class="nav-section">
+          <div class="nav-section-title">Systems</div>
+          <a href="rendering.html" class="nav-link">Rendering</a>
+          <a href="networking.html" class="nav-link">Networking</a>
+          <a href="world-gen.html" class="nav-link">World Generation</a>
+          <a href="entities.html" class="nav-link">Entities</a>
+          <a href="tiles-items.html" class="nav-link">Tiles &amp; Items</a>
+          <a href="ui-system.html" class="nav-link">UI System</a>
+          <a href="audio.html" class="nav-link">Audio</a>
+          <a href="storage.html" class="nav-link">Storage</a>
+          <a href="gameplay.html" class="nav-link">Gameplay</a>
+          <a href="platforms.html" class="nav-link">Platforms</a>
+        </div>
+      </nav>
+    </aside>
+    <main class="main-content">
+
+      <div class="breadcrumbs"><a href="index.html">Home</a> <span class="separator">/</span> Getting Started</div>
+
+      <h1>Getting Started</h1>
+      <p>This guide covers building the LCEMP project from source. It walks you through the required development tools, game assets, third-party libraries, build configuration, and launch arguments needed to compile and run the Minecraft Legacy Console Edition Windows 64-bit client.</p>
+
+      <!-- ============================================================
+           Prerequisites
+           ============================================================ -->
+      <section id="prerequisites">
+        <h2>Prerequisites</h2>
+        <p>Before building the project, ensure your development environment meets the following requirements:</p>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">Development Environment</span>
+            <span class="badge badge-platform">Windows 64-bit</span>
+          </div>
+          <div class="class-description">
+            <ul>
+              <li><strong>Visual Studio 2012 or newer</strong> &mdash; The solution and project files target the MSVC toolchain. Visual Studio 2012 is the minimum supported version; newer versions (2015, 2017, 2019, 2022) are also compatible.</li>
+              <li><strong>CMake 3.10+</strong> &mdash; Used to generate build files if you prefer CMake over the Visual Studio solution directly.</li>
+              <li><strong>C++11 compatible compiler</strong> &mdash; The codebase relies on C++11 features such as <code>auto</code>, range-based for loops, <code>nullptr</code>, and <code>std::shared_ptr</code>.</li>
+              <li><strong>DirectX 11 SDK</strong> &mdash; Required for the Windows rendering backend. Typically included with the Windows SDK in Visual Studio 2012+.</li>
+              <li><strong>Windows 64-bit development environment</strong> &mdash; The build targets x64 exclusively. A 32-bit host is not supported.</li>
+            </ul>
+          </div>
+        </div>
+
+        <blockquote>
+          <p><strong>Note:</strong> The original codebase was developed with Visual Studio 2012. While newer compilers work, you may encounter warnings about deprecated C++ features or SDK differences. The recommended approach is to use Visual Studio 2019 or 2022 with the v110 or v140+ platform toolset.</p>
+        </blockquote>
+      </section>
+
+      <!-- ============================================================
+           Required Assets
+           ============================================================ -->
+      <section id="required-assets">
+        <h2>Required Assets</h2>
+        <p>The LCEMP source code does not include proprietary game assets. You must supply the following directories from a legitimate copy of Minecraft Legacy Console Edition. Place them in the correct paths relative to the project root.</p>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Directory</th>
+                <th>Contents</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>Minecraft.Client/music/</code></td>
+                <td>Binka audio format music files (<code>.binka</code>). These are the in-game music tracks encoded in RAD Game Tools' Binka format.</td>
+              </tr>
+              <tr>
+                <td><code>Minecraft.Client/Common/Media/</code></td>
+                <td>SWF UI files for multiple resolutions: 480p, 720p, 1080p, and PS Vita resolution variants. These Flash-based assets drive the Iggy/Scaleform UI system.</td>
+              </tr>
+              <tr>
+                <td><code>Minecraft.Client/Common/res/</code></td>
+                <td>Game textures and resources, including block textures, entity textures, GUI elements, fonts, and shader files.</td>
+              </tr>
+              <tr>
+                <td><code>Minecraft.Client/Common/DummyTexturePack/</code></td>
+                <td>Fallback texture pack used when no other texture pack is loaded. Provides a minimal set of textures to prevent rendering errors.</td>
+              </tr>
+              <tr>
+                <td><code>Minecraft.Client/DurangoMedia/</code></td>
+                <td>Xbox One (Durango) media assets, including platform-specific UI layouts, splash screens, and certification assets.</td>
+              </tr>
+              <tr>
+                <td><code>Minecraft.Client/OrbisMedia/</code></td>
+                <td>PS4 (Orbis) media assets, including PlayStation-specific button prompts, trophy images, and store assets.</td>
+              </tr>
+              <tr>
+                <td><code>Minecraft.Client/PS3Media/</code></td>
+                <td>PS3 media assets, including platform-specific textures, icons, and certification-required resources.</td>
+              </tr>
+              <tr>
+                <td><code>Minecraft.Client/PSVitaMedia/</code></td>
+                <td>PS Vita media assets, including scaled-down textures and Vita-specific UI resources optimized for the handheld display.</td>
+              </tr>
+              <tr>
+                <td><code>Minecraft.Client/Windows64Media/</code></td>
+                <td>Windows PC media assets. This is the primary media directory used when building and running the Windows 64-bit target.</td>
+              </tr>
+              <tr>
+                <td><code>Minecraft.Client/redist64/</code></td>
+                <td>Redistributable runtime files required for the 64-bit build, including Visual C++ runtime DLLs and other dependencies.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <details>
+          <summary>Asset Directory Structure Example</summary>
+          <div class="details-content">
+<pre><code>Minecraft.Client/
+  music/
+    calm1.binka
+    calm2.binka
+    calm3.binka
+    ...
+  Common/
+    Media/
+      MinecraftUI_480p.swf
+      MinecraftUI_720p.swf
+      MinecraftUI_1080p.swf
+      MinecraftUI_Vita.swf
+      ...
+    res/
+      terrain.png
+      items.png
+      ...
+    DummyTexturePack/
+      ...
+  DurangoMedia/
+  OrbisMedia/
+  PS3Media/
+  PSVitaMedia/
+  Windows64Media/
+  redist64/</code></pre>
+          </div>
+        </details>
+      </section>
+
+      <!-- ============================================================
+           Required Libraries
+           ============================================================ -->
+      <section id="required-libraries">
+        <h2>Required Libraries</h2>
+        <p>The project depends on several proprietary middleware libraries. These must be obtained separately and placed in the correct directories. Each library ships per-platform builds.</p>
+
+        <h3>4J Studios Libraries</h3>
+        <p>Proprietary libraries developed by 4J Studios that provide platform-abstracted input, storage, profiling, and rendering services.</p>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Directory</th>
+                <th>Platform</th>
+                <th>Libraries Included</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>4JLibs/Windows64/</code></td>
+                <td><span class="badge badge-platform">Windows 64-bit</span></td>
+                <td><code>4J_Input</code>, <code>4J_Storage</code>, <code>4J_Profile</code>, <code>4J_Render_PC</code></td>
+              </tr>
+              <tr>
+                <td><code>4JLibs/Xbox/</code></td>
+                <td><span class="badge badge-platform">Xbox 360</span></td>
+                <td><code>4J_Input</code>, <code>4J_Storage</code>, <code>4J_Profile</code>, <code>4J_Render_PC</code></td>
+              </tr>
+              <tr>
+                <td><code>4JLibs/Durango/</code></td>
+                <td><span class="badge badge-platform">Xbox One</span></td>
+                <td><code>4J_Input</code>, <code>4J_Storage</code>, <code>4J_Profile</code>, <code>4J_Render_PC</code></td>
+              </tr>
+              <tr>
+                <td><code>4JLibs/Orbis/</code></td>
+                <td><span class="badge badge-platform">PS4</span></td>
+                <td><code>4J_Input</code>, <code>4J_Storage</code>, <code>4J_Profile</code>, <code>4J_Render_PC</code></td>
+              </tr>
+              <tr>
+                <td><code>4JLibs/PS3/</code></td>
+                <td><span class="badge badge-platform">PS3</span></td>
+                <td><code>4J_Input</code>, <code>4J_Storage</code>, <code>4J_Profile</code>, <code>4J_Render_PC</code></td>
+              </tr>
+              <tr>
+                <td><code>4JLibs/PSVita/</code></td>
+                <td><span class="badge badge-platform">PS Vita</span></td>
+                <td><code>4J_Input</code>, <code>4J_Storage</code>, <code>4J_Profile</code>, <code>4J_Render_PC</code></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>Miles Sound System</h3>
+        <p>RAD Game Tools' Miles Sound System provides audio playback, 3D positional sound, and streaming capabilities.</p>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">Miles/</span>
+            <span class="badge badge-category">Audio Middleware</span>
+          </div>
+          <div class="class-description">
+            <p>Per-platform directories containing <code>mss64.lib</code> (Windows 64-bit static import library). The Miles SDK provides the audio backend used for all sound effects, ambient audio, and music playback. Platform-specific variants exist for each target console.</p>
+          </div>
+        </div>
+
+        <h3>Iggy UI Middleware</h3>
+        <p>Iggy (Scaleform) provides Flash/SWF-based UI rendering used for all menu screens and HUD elements.</p>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">Iggy/</span>
+            <span class="badge badge-category">UI Middleware</span>
+          </div>
+          <div class="class-description">
+            <p>Per-platform directories containing <code>iggy_w64.lib</code> (Windows 64-bit static import library). Iggy renders SWF assets at runtime and bridges ActionScript calls to the C++ game code via the <code>IggyInterface</code> class.</p>
+          </div>
+        </div>
+
+        <h3>Sentient Middleware</h3>
+        <p>Sentient provides additional middleware services used by the engine.</p>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">Sentient/</span>
+            <span class="badge badge-category">Middleware</span>
+          </div>
+          <div class="class-description">
+            <p>Per-platform directories containing Sentient middleware libraries. Like the other middleware dependencies, platform-specific builds must be placed in the corresponding subdirectories.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           Required Files
+           ============================================================ -->
+      <section id="required-files">
+        <h2>Required Files</h2>
+        <p>In addition to the asset directories and library folders, the following individual files are required for a successful build and runtime execution.</p>
+
+        <h3>Build-Time Files</h3>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>File</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>Minecraft.Client/xbox/MinecraftWindows.rc</code></td>
+                <td>Windows resource file that embeds version information, application manifest, and icon resources into the compiled executable.</td>
+              </tr>
+              <tr>
+                <td><code>Minecraft.Client/xbox/MinecraftWindows.ico</code></td>
+                <td>Application icon displayed in the taskbar, window title bar, and file explorer. Standard multi-resolution <code>.ico</code> format.</td>
+              </tr>
+              <tr>
+                <td><code>Minecraft.Client/xbox/small.ico</code></td>
+                <td>Small application icon (typically 16x16 and 32x32) used for taskbar and ALT+TAB displays.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>Runtime DLLs</h3>
+        <p>These DLLs must be present in the output directory alongside the built executable.</p>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>File</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>x64/Debug/iggy_w64.dll</code></td>
+                <td>Iggy UI runtime DLL. Provides the Flash/SWF rendering engine at runtime. Must be in the same directory as the executable.</td>
+              </tr>
+              <tr>
+                <td><code>x64/Debug/mss64.dll</code></td>
+                <td>Miles Sound System runtime DLL. Required for all audio playback functionality. Must be in the same directory as the executable.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <blockquote>
+          <p><strong>Important:</strong> If the runtime DLLs are missing, the application will fail to launch with a system error about missing DLL dependencies. Ensure both <code>iggy_w64.dll</code> and <code>mss64.dll</code> are copied to your build output directory.</p>
+        </blockquote>
+      </section>
+
+      <!-- ============================================================
+           Build Instructions
+           ============================================================ -->
+      <section id="build-instructions">
+        <h2>Build Instructions</h2>
+        <p>Follow these steps to build the LCEMP project from source. The build produces two targets: a static library (<strong>MinecraftWorld</strong>) and the final executable (<strong>MinecraftClient</strong>).</p>
+
+        <h3>Step-by-Step</h3>
+        <ol>
+          <li>
+            <strong>Obtain the required assets</strong>
+            <p>Gather all game textures, music files, and platform media directories listed in the <a href="#required-assets">Required Assets</a> section. Place them in the expected paths relative to the project root.</p>
+          </li>
+          <li>
+            <strong>Replace source folders</strong>
+            <p>Replace your <code>Minecraft.Client</code> and <code>Minecraft.World</code> source folders with the ones from this repository. The LCEMP modifications live in these two directories.</p>
+          </li>
+          <li>
+            <strong>Build using CMake or Visual Studio</strong>
+            <p>You can build using either method:</p>
+            <details>
+              <summary>Option A: Visual Studio Solution</summary>
+              <div class="details-content">
+                <p>Open <code>MinecraftConsoles.sln</code> in Visual Studio. Select the <strong>x64</strong> platform and your desired configuration (Debug or Release), then build the solution.</p>
+<pre><code>1. Open MinecraftConsoles.sln
+2. Set platform to x64
+3. Set configuration to Debug or Release
+4. Build &gt; Build Solution  (Ctrl+Shift+B)</code></pre>
+              </div>
+            </details>
+            <details>
+              <summary>Option B: CMake</summary>
+              <div class="details-content">
+                <p>Generate the build files using CMake, then compile:</p>
+<pre><code>mkdir build
+cd build
+cmake .. -G "Visual Studio 17 2022" -A x64
+cmake --build . --config Debug</code></pre>
+                <p>Adjust the generator string for your installed Visual Studio version.</p>
+              </div>
+            </details>
+          </li>
+          <li>
+            <strong>Run with optional launch arguments</strong>
+            <p>After a successful build, the executable is output to <code>x64/Debug/</code> (or <code>x64/Release/</code>). See the <a href="#launch-arguments">Launch Arguments</a> section for runtime options.</p>
+          </li>
+        </ol>
+
+        <h3>Build Targets</h3>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Target</th>
+                <th>Type</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>MinecraftWorld</code></td>
+                <td><span class="badge badge-type">Static Library</span></td>
+                <td>Compiles all <code>Minecraft.World</code> source files into a static library (<code>.lib</code>). Contains entities, tiles, items, networking, world generation, storage, and gameplay logic.</td>
+              </tr>
+              <tr>
+                <td><code>MinecraftClient</code></td>
+                <td><span class="badge badge-type">Win32 Executable</span></td>
+                <td>Links <code>MinecraftWorld.lib</code> together with the <code>Minecraft.Client</code> source files and all third-party libraries to produce the final <code>Minecraft.Client.exe</code> executable.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           Preprocessor Defines
+           ============================================================ -->
+      <section id="preprocessor-defines">
+        <h2>Preprocessor Defines</h2>
+        <p>The following preprocessor macros control build-time feature flags and platform targeting. These are typically set in the project properties or CMake configuration.</p>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Define</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>_LARGE_WORLDS</code></td>
+                <td>Enables large world support. When defined, the engine uses expanded coordinate ranges and larger chunk loading distances, removing the default console world-size limitations.</td>
+              </tr>
+              <tr>
+                <td><code>_DEBUG_MENUS_ENABLED</code></td>
+                <td>Enables debug menus and developer overlays. Provides access to in-game debug tools such as chunk visualization, entity inspection, network statistics, and performance profiling.</td>
+              </tr>
+              <tr>
+                <td><code>_WINDOWS64</code></td>
+                <td>Windows 64-bit target platform flag. Must be defined when building for the Windows x64 platform. Controls platform-specific code paths throughout the engine.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <details>
+          <summary>Setting Defines in Visual Studio</summary>
+          <div class="details-content">
+            <p>In Visual Studio, navigate to <strong>Project Properties &gt; C/C++ &gt; Preprocessor &gt; Preprocessor Definitions</strong> and add the defines separated by semicolons:</p>
+<pre><code>_WINDOWS64;_LARGE_WORLDS;_DEBUG_MENUS_ENABLED</code></pre>
+            <p>For Release builds, you may want to omit <code>_DEBUG_MENUS_ENABLED</code> to disable debug overlays.</p>
+          </div>
+        </details>
+      </section>
+
+      <!-- ============================================================
+           Launch Arguments
+           ============================================================ -->
+      <section id="launch-arguments">
+        <h2>Launch Arguments</h2>
+        <p>The client executable supports several command-line arguments to configure networking and player identity at launch. These are especially useful for LAN multiplayer testing.</p>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Argument</th>
+                <th>Usage</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>-name</code></td>
+                <td><code>-name &lt;username&gt;</code></td>
+                <td>Sets your in-game username. This is the name displayed above your player character and in the player list. If not specified, a default name is used.</td>
+              </tr>
+              <tr>
+                <td><code>-ip</code></td>
+                <td><code>-ip &lt;targetip&gt;</code></td>
+                <td>Manually connect to a specific IP address. Use this if LAN discovery fails to find the host or if you are connecting across subnets.</td>
+              </tr>
+              <tr>
+                <td><code>-port</code></td>
+                <td><code>-port &lt;targetport&gt;</code></td>
+                <td>Override the default port number for the connection. The default port is <code>25565</code>. Useful when running multiple instances or when port forwarding is configured on a non-standard port.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>Example</h3>
+        <p>Launch the client with a custom username and connect directly to a LAN host:</p>
+<pre><code>Minecraft.Client.exe -name Steve -ip 192.168.0.25 -port 25565</code></pre>
+
+        <details>
+          <summary>Running from Visual Studio</summary>
+          <div class="details-content">
+            <p>To pass launch arguments when debugging in Visual Studio, go to <strong>Project Properties &gt; Debugging &gt; Command Arguments</strong> and enter:</p>
+<pre><code>-name Steve -ip 192.168.0.25 -port 25565</code></pre>
+          </div>
+        </details>
+      </section>
+
+      <!-- ============================================================
+           Linked Libraries
+           ============================================================ -->
+      <section id="linked-libraries">
+        <h2>Linked Libraries</h2>
+        <p>The <code>MinecraftClient</code> target links against the following libraries at build time. These must all be available in your library search paths for the linker to succeed.</p>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Library</th>
+                <th>Source</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>4J_Input</code></td>
+                <td><span class="badge badge-category">4J Proprietary</span></td>
+                <td>Platform-abstracted input handling. Provides a unified API for keyboard, mouse, and gamepad input across all supported platforms.</td>
+              </tr>
+              <tr>
+                <td><code>4J_Storage</code></td>
+                <td><span class="badge badge-category">4J Proprietary</span></td>
+                <td>Platform-abstracted save data management. Handles reading and writing save files through each platform's native storage APIs.</td>
+              </tr>
+              <tr>
+                <td><code>4J_Profile</code></td>
+                <td><span class="badge badge-category">4J Proprietary</span></td>
+                <td>Player profile and user account management. Interfaces with platform-specific user identity systems.</td>
+              </tr>
+              <tr>
+                <td><code>4J_Render_PC</code></td>
+                <td><span class="badge badge-category">4J Proprietary</span></td>
+                <td>PC-specific rendering abstraction layer built on top of DirectX 11. Provides the low-level graphics interface used by the engine's renderer.</td>
+              </tr>
+              <tr>
+                <td><code>iggy_w64.lib</code></td>
+                <td><span class="badge badge-category">UI Middleware</span></td>
+                <td>Iggy/Scaleform Flash UI engine. Renders SWF-based menus and HUD elements, and provides the ActionScript-to-C++ bridge for UI interactions.</td>
+              </tr>
+              <tr>
+                <td><code>mss64.lib</code></td>
+                <td><span class="badge badge-category">Audio Middleware</span></td>
+                <td>Miles Sound System by RAD Game Tools. Provides audio mixing, 3D positional sound, streaming music playback, and Binka format decoding.</td>
+              </tr>
+              <tr>
+                <td><code>d3d11.lib</code></td>
+                <td><span class="badge badge-platform">Windows SDK</span></td>
+                <td>DirectX 11 graphics API. The core rendering API used for all GPU operations: shader compilation, buffer management, draw calls, and swap chain presentation.</td>
+              </tr>
+              <tr>
+                <td><code>XInput9_1_0.lib</code></td>
+                <td><span class="badge badge-platform">Windows SDK</span></td>
+                <td>XInput controller input library. Provides Xbox-compatible gamepad support on Windows, including analog sticks, triggers, and rumble feedback.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <details>
+          <summary>Linker Configuration in Visual Studio</summary>
+          <div class="details-content">
+            <p>In Visual Studio, navigate to <strong>Project Properties &gt; Linker &gt; Input &gt; Additional Dependencies</strong> and ensure the following are listed:</p>
+<pre><code>4J_Input.lib
+4J_Storage.lib
+4J_Profile.lib
+4J_Render_PC.lib
+iggy_w64.lib
+mss64.lib
+d3d11.lib
+XInput9_1_0.lib</code></pre>
+            <p>Also verify that <strong>Linker &gt; General &gt; Additional Library Directories</strong> includes the paths to your <code>4JLibs/Windows64/</code>, <code>Miles/</code>, and <code>Iggy/</code> directories.</p>
+          </div>
+        </details>
+      </section>
+
+      <hr>
+
+      <p class="text-subtext0">Now that your environment is set up, continue to the <a href="architecture.html">Architecture</a> page to understand how the engine is structured, or explore the individual system pages for deep dives into rendering, networking, world generation, and more.</p>
+
+      <footer class="site-footer">
+        <p>LCE Documentation &mdash; Generated for the LCEMP project by notpies</p>
+      </footer>
+    </main>
+  </div>
+  <div class="search-overlay" id="search-overlay">
+    <div class="search-modal">
+      <input type="text" class="search-input-large" id="search-input" placeholder="Search documentation..." autocomplete="off">
+      <div class="search-results" id="search-results"></div>
+    </div>
+  </div>
+  <script src="js/nav.js"></script>
+  <script src="js/search.js"></script>
+</body>
+</html>

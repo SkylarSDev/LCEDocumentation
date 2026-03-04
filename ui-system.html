@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UI System - LCE Documentation</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <button class="hamburger" aria-label="Toggle navigation">
+    <span></span><span></span><span></span>
+  </button>
+  <div class="site-wrapper">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <h1 class="sidebar-title">LCE Docs</h1>
+        <p class="sidebar-subtitle">Legacy Console Edition</p>
+      </div>
+      <div class="sidebar-search">
+        <input type="text" placeholder="Search docs (Ctrl+K)" id="sidebar-search-input" autocomplete="off">
+      </div>
+      <nav class="sidebar-nav">
+        <div class="nav-section">
+          <div class="nav-section-title">Overview</div>
+          <a href="index.html" class="nav-link">Home</a>
+          <a href="getting-started.html" class="nav-link">Getting Started</a>
+          <a href="architecture.html" class="nav-link">Architecture</a>
+        </div>
+        <div class="nav-section">
+          <div class="nav-section-title">Systems</div>
+          <a href="rendering.html" class="nav-link">Rendering</a>
+          <a href="networking.html" class="nav-link">Networking</a>
+          <a href="world-gen.html" class="nav-link">World Generation</a>
+          <a href="entities.html" class="nav-link">Entities</a>
+          <a href="tiles-items.html" class="nav-link">Tiles &amp; Items</a>
+          <a href="ui-system.html" class="nav-link active">UI System</a>
+          <a href="audio.html" class="nav-link">Audio</a>
+          <a href="storage.html" class="nav-link">Storage</a>
+          <a href="gameplay.html" class="nav-link">Gameplay</a>
+          <a href="platforms.html" class="nav-link">Platforms</a>
+        </div>
+      </nav>
+    </aside>
+    <main class="main-content">
+
+      <!-- Breadcrumb -->
+      <div class="breadcrumbs">
+        <a href="index.html">Home</a>
+        <span class="separator">/</span>
+        <span class="current">UI System</span>
+      </div>
+
+      <h1>UI System</h1>
+
+      <!-- ================================================================
+           Overview
+           ================================================================ -->
+      <section id="overview">
+        <h2>Overview</h2>
+        <p>LCE uses a <strong>Flash/SWF-based UI</strong> powered by <strong>Iggy/Scaleform</strong> middleware. The <code>UILayer</code> class manages scene navigation stacks and persistent components. Each screen is represented by a <code>UIScene</code>, which wraps a Flash movie object. Interactive elements are built from a <code>UIControl</code> hierarchy that provides buttons, sliders, lists, text inputs, and other widgets. Platform-specific <code>IUIScene</code> interfaces allow per-platform customization of menu behavior. The system supports multiple resolutions: <strong>480p</strong>, <strong>720p</strong>, <strong>1080p</strong>, and <strong>Vita</strong>.</p>
+      </section>
+
+      <!-- ================================================================
+           UIScene Base Class
+           ================================================================ -->
+      <section id="uiscene">
+        <h2>UIScene Base Class</h2>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">UIScene</span>
+          </div>
+          <div class="class-meta">Minecraft.Client/Common/UI/UIScene.h</div>
+          <p class="class-description">Base class for all UI screens. Wraps a Flash/SWF movie object via the Iggy middleware, providing lifecycle management, input handling, focus tracking, and rendering. Each scene has a loaded resolution and can draw custom slot controls for inventory item display.</p>
+
+          <h4>Key Members</h4>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr><th>Member</th><th>Type</th><th>Description</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>swf</code></td><td><code>Iggy*</code></td><td>Pointer to the Flash movie instance managed by Iggy middleware</td></tr>
+                <tr><td><code>rootPath</code></td><td><code>IggyValuePath*</code></td><td>Root value path into the Flash display tree</td></tr>
+                <tr><td><code>itemRenderer</code></td><td><code>ItemRenderer*</code></td><td>Renderer for drawing item icons within UI slot controls</td></tr>
+                <tr><td><code>focusControl</code></td><td><code>int</code></td><td>Index of the currently focused control</td></tr>
+                <tr><td><code>focusChild</code></td><td><code>int</code></td><td>Index of the focused child within the focused control</td></tr>
+                <tr><td><code>lastOpacity</code></td><td><code>float</code></td><td>Last applied opacity value for fade transitions</td></tr>
+                <tr><td><code>bVisible</code></td><td><code>bool</code></td><td>Whether the scene is currently visible</td></tr>
+                <tr><td><code>bCanHandleInput</code></td><td><code>bool</code></td><td>Whether the scene is currently accepting input</td></tr>
+                <tr><td><code>loadedResolution</code></td><td><code>ESceneResolution</code></td><td>Resolution the SWF was loaded at (e1080, e720, e480, eVita)</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h4>Virtual Methods</h4>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr><th>Method</th><th>Description</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>getSceneType() &rarr; EUIScene = 0</code></td><td>Pure virtual. Returns the scene type enum identifying this screen</td></tr>
+                <tr><td><code>tick()</code></td><td>Per-tick update for animation and state changes</td></tr>
+                <tr><td><code>render(S32 width, S32 height, C4JRender::eViewportType)</code></td><td>Renders the scene at the given viewport dimensions and type</td></tr>
+                <tr><td><code>handleInput(int iPad, int key, bool repeat, bool pressed, bool released, bool&amp; handled)</code></td><td>Processes input events from the specified controller pad</td></tr>
+                <tr><td><code>stealsFocus() &rarr; bool</code></td><td>Returns whether this scene captures all input focus</td></tr>
+                <tr><td><code>hasFocus(int iPad) &rarr; bool</code></td><td>Returns whether the given pad currently has focus on this scene</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h4>Methods</h4>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr><th>Method</th><th>Description</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>gainFocus()</code></td><td>Called when the scene receives input focus</td></tr>
+                <tr><td><code>loseFocus()</code></td><td>Called when the scene loses input focus</td></tr>
+                <tr><td><code>navigateBack()</code></td><td>Triggers a back-navigation to the previous scene in the stack</td></tr>
+                <tr><td><code>customDrawSlotControl(IggyCustomDrawCallbackRegion*, int iPad, shared_ptr&lt;ItemInstance&gt;, float, bool isFoil, bool bDecorations)</code></td><td>Custom draw callback for rendering item slots with foil and decoration overlays</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================================================================
+           UILayer
+           ================================================================ -->
+      <section id="uilayer">
+        <h2>UILayer</h2>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">UILayer</span>
+          </div>
+          <div class="class-meta">Minecraft.Client/Common/UI/UILayer.h</div>
+          <p class="class-description">Top-level UI manager that maintains a navigation stack of scenes and a set of persistent components. Handles scene transitions, focus delegation, and rendering of the entire UI layer. Supports navigating forward to new scenes and back through the stack.</p>
+
+          <h4>Key Members</h4>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr><th>Member</th><th>Type</th><th>Description</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>sceneStack</code></td><td><code>vector&lt;UIScene*&gt;</code></td><td>Navigation stack of active scenes (top is the current screen)</td></tr>
+                <tr><td><code>components</code></td><td><code>vector&lt;UIScene*&gt;</code></td><td>Persistent UI components that overlay the current scene</td></tr>
+                <tr><td><code>scenesToDelete</code></td><td><code>vector&lt;UIScene*&gt;</code></td><td>Scenes pending deletion after navigation</td></tr>
+                <tr><td><code>scenesToDestroy</code></td><td><code>vector&lt;UIScene*&gt;</code></td><td>Scenes pending destruction after removal</td></tr>
+                <tr><td><code>hasFocus</code></td><td><code>bool</code></td><td>Whether the UI layer currently has input focus</td></tr>
+                <tr><td><code>bMenuDisplayed</code></td><td><code>bool</code></td><td>Whether a menu screen is currently being displayed</td></tr>
+                <tr><td><code>bPauseMenuDisplayed</code></td><td><code>bool</code></td><td>Whether the pause menu is currently being displayed</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h4>Key Methods</h4>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr><th>Method</th><th>Description</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>tick()</code></td><td>Per-tick update for all active scenes and components</td></tr>
+                <tr><td><code>render(S32, S32, eViewportType)</code></td><td>Renders the scene stack and visible components</td></tr>
+                <tr><td><code>NavigateToScene(int iPad, EUIScene, void*) &rarr; bool</code></td><td>Pushes a new scene onto the stack for the given pad</td></tr>
+                <tr><td><code>NavigateBack(int iPad, EUIScene) &rarr; bool</code></td><td>Pops scenes from the stack until reaching the specified scene type</td></tr>
+                <tr><td><code>GetTopScene() &rarr; UIScene*</code></td><td>Returns the topmost scene on the navigation stack</td></tr>
+                <tr><td><code>showComponent(int iPad, EUIScene, bool)</code></td><td>Shows or hides a persistent component by scene type</td></tr>
+                <tr><td><code>addComponent(int iPad, EUIScene, void*) &rarr; UIScene*</code></td><td>Creates and registers a persistent component</td></tr>
+                <tr><td><code>isComponentVisible(EUIScene) &rarr; bool</code></td><td>Returns whether the specified component is currently visible</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================================================================
+           UIControl Base
+           ================================================================ -->
+      <section id="uicontrol">
+        <h2>UIControl Base</h2>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">UIControl</span>
+          </div>
+          <div class="class-meta">Minecraft.Client/Common/UI/UIControl.h</div>
+          <p class="class-description">Base class for all interactive UI elements. Each control is bound to a Flash display object via an <code>IggyValuePath</code> and tracks position, size, visibility, opacity, and focus state. Controls are owned by a parent <code>UIScene</code> and receive input through the scene's focus system.</p>
+
+          <h4>Enum eUIControlType</h4>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr><th>Value</th><th>Description</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>eNoControl</code></td><td>No control / null type</td></tr>
+                <tr><td><code>eButton</code></td><td>Clickable button</td></tr>
+                <tr><td><code>eButtonList</code></td><td>Scrollable list of buttons</td></tr>
+                <tr><td><code>eCheckBox</code></td><td>Toggle checkbox</td></tr>
+                <tr><td><code>eCursor</code></td><td>On-screen cursor</td></tr>
+                <tr><td><code>eDLCList</code></td><td>DLC content list</td></tr>
+                <tr><td><code>eDynamicLabel</code></td><td>Updateable text label</td></tr>
+                <tr><td><code>eEnchantmentBook</code></td><td>Enchanting animation</td></tr>
+                <tr><td><code>eEnchantmentButton</code></td><td>Enchantment option</td></tr>
+                <tr><td><code>eHTMLLabel</code></td><td>HTML-formatted label</td></tr>
+                <tr><td><code>eLabel</code></td><td>Static text label</td></tr>
+                <tr><td><code>eLeaderboardList</code></td><td>Leaderboard display</td></tr>
+                <tr><td><code>eMinecraftPlayer</code></td><td>Player model display</td></tr>
+                <tr><td><code>ePlayerList</code></td><td>Player list display</td></tr>
+                <tr><td><code>ePlayerSkinPreview</code></td><td>Skin preview renderer</td></tr>
+                <tr><td><code>eProgress</code></td><td>Progress bar</td></tr>
+                <tr><td><code>eSaveList</code></td><td>Save file list</td></tr>
+                <tr><td><code>eSlider</code></td><td>Value slider</td></tr>
+                <tr><td><code>eSlotList</code></td><td>Inventory slot grid</td></tr>
+                <tr><td><code>eTextInput</code></td><td>Text entry field</td></tr>
+                <tr><td><code>eTexturePackList</code></td><td>Texture pack list</td></tr>
+                <tr><td><code>eBitmapIcon</code></td><td>Bitmap image display</td></tr>
+                <tr><td><code>eTouchControl</code></td><td>Touch input area (Vita)</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h4>Key Members</h4>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr><th>Member</th><th>Type</th><th>Description</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>controlType</code></td><td><code>eUIControlType</code></td><td>Type identifier for this control</td></tr>
+                <tr><td><code>iggyPath</code></td><td><code>IggyValuePath</code></td><td>Path to the Flash display object backing this control</td></tr>
+                <tr><td><code>parentScene</code></td><td><code>UIScene*</code></td><td>Owning scene that contains this control</td></tr>
+                <tr><td><code>x</code></td><td><code>S32</code></td><td>X position within the scene</td></tr>
+                <tr><td><code>y</code></td><td><code>S32</code></td><td>Y position within the scene</td></tr>
+                <tr><td><code>width</code></td><td><code>S32</code></td><td>Width of the control</td></tr>
+                <tr><td><code>height</code></td><td><code>S32</code></td><td>Height of the control</td></tr>
+                <tr><td><code>lastOpacity</code></td><td><code>float</code></td><td>Last applied opacity value</td></tr>
+                <tr><td><code>isVisible</code></td><td><code>bool</code></td><td>Whether the control is currently visible</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h4>Key Methods</h4>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr><th>Method</th><th>Description</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>setupControl(UIScene*, IggyValuePath*, string&amp;) &rarr; bool</code></td><td>Initializes the control, binding it to a Flash display object</td></tr>
+                <tr><td><code>tick()</code></td><td>Per-tick update for control state and animation</td></tr>
+                <tr><td><code>setFocus(bool)</code></td><td>Sets or removes focus on this control</td></tr>
+                <tr><td><code>getXPos() &rarr; S32</code></td><td>Returns the X position of the control</td></tr>
+                <tr><td><code>getYPos() &rarr; S32</code></td><td>Returns the Y position of the control</td></tr>
+                <tr><td><code>getWidth() &rarr; S32</code></td><td>Returns the width of the control</td></tr>
+                <tr><td><code>getHeight() &rarr; S32</code></td><td>Returns the height of the control</td></tr>
+                <tr><td><code>setOpacity(float)</code></td><td>Sets the opacity of the control</td></tr>
+                <tr><td><code>setVisible(bool)</code></td><td>Shows or hides the control</td></tr>
+                <tr><td><code>hasFocus() &rarr; bool</code></td><td>Returns whether the control currently has focus</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================================================================
+           All 22 UIControl Types
+           ================================================================ -->
+      <section id="control-types">
+        <h2>All 22 UIControl Types</h2>
+        <p>Concrete control implementations that extend the <code>UIControl</code> base class, each providing specialized widget behavior.</p>
+
+        <details>
+          <summary>All 22 UIControl Types</summary>
+          <div class="details-content">
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr><th>Control</th><th>Type Enum</th><th>Description</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td><code>UIControl_Button</code></td><td><code>eButton</code></td><td>Clickable button</td></tr>
+                  <tr><td><code>UIControl_ButtonList</code></td><td><code>eButtonList</code></td><td>Scrollable list of buttons</td></tr>
+                  <tr><td><code>UIControl_CheckBox</code></td><td><code>eCheckBox</code></td><td>Toggle checkbox</td></tr>
+                  <tr><td><code>UIControl_Cursor</code></td><td><code>eCursor</code></td><td>On-screen cursor</td></tr>
+                  <tr><td><code>UIControl_Slider</code></td><td><code>eSlider</code></td><td>Value slider</td></tr>
+                  <tr><td><code>UIControl_TextInput</code></td><td><code>eTextInput</code></td><td>Text entry field</td></tr>
+                  <tr><td><code>UIControl_DynamicLabel</code></td><td><code>eDynamicLabel</code></td><td>Updateable text label</td></tr>
+                  <tr><td><code>UIControl_Label</code></td><td><code>eLabel</code></td><td>Static text label</td></tr>
+                  <tr><td><code>UIControl_HTMLLabel</code></td><td><code>eHTMLLabel</code></td><td>HTML-formatted label</td></tr>
+                  <tr><td><code>UIControl_Progress</code></td><td><code>eProgress</code></td><td>Progress bar</td></tr>
+                  <tr><td><code>UIControl_Touch</code></td><td><code>eTouchControl</code></td><td>Touch input area (Vita)</td></tr>
+                  <tr><td><code>UIControl_BitmapIcon</code></td><td><code>eBitmapIcon</code></td><td>Bitmap image display</td></tr>
+                  <tr><td><code>UIControl_EnchantmentBook</code></td><td><code>eEnchantmentBook</code></td><td>Enchanting animation</td></tr>
+                  <tr><td><code>UIControl_EnchantmentButton</code></td><td><code>eEnchantmentButton</code></td><td>Enchantment option</td></tr>
+                  <tr><td><code>UIControl_MinecraftPlayer</code></td><td><code>eMinecraftPlayer</code></td><td>Player model display</td></tr>
+                  <tr><td><code>UIControl_PlayerSkinPreview</code></td><td><code>ePlayerSkinPreview</code></td><td>Skin preview renderer</td></tr>
+                  <tr><td><code>UIControl_SpaceIndicatorBar</code></td><td><code>eSpaceIndicator</code></td><td>Storage space indicator</td></tr>
+                  <tr><td><code>UIControl_LeaderboardList</code></td><td><code>eLeaderboardList</code></td><td>Leaderboard display</td></tr>
+                  <tr><td><code>UIControl_PlayerList</code></td><td><code>ePlayerList</code></td><td>Player list display</td></tr>
+                  <tr><td><code>UIControl_SaveList</code></td><td><code>eSaveList</code></td><td>Save file list</td></tr>
+                  <tr><td><code>UIControl_DLCList</code></td><td><code>eDLCList</code></td><td>DLC content list</td></tr>
+                  <tr><td><code>UIControl_TexturePackList</code></td><td><code>eTexturePackList</code></td><td>Texture pack list</td></tr>
+                  <tr><td><code>UIControl_SlotList</code></td><td><code>eSlotList</code></td><td>Inventory slot grid</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </details>
+      </section>
+
+      <!-- ================================================================
+           UI Components
+           ================================================================ -->
+      <section id="components">
+        <h2>UI Components</h2>
+        <p>Persistent overlay components managed by <code>UILayer</code>. Unlike scenes on the navigation stack, components remain active across scene transitions and are shown or hidden independently.</p>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr><th>Component</th><th>Description</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>UIComponent_Chat</code></td><td>In-game chat display</td></tr>
+              <tr><td><code>UIComponent_Tooltips</code></td><td>Tooltip overlay system</td></tr>
+              <tr><td><code>UIComponent_Logo</code></td><td>4J/Mojang logo display</td></tr>
+              <tr><td><code>UIComponent_Panorama</code></td><td>Rotating menu background</td></tr>
+              <tr><td><code>UIComponent_MenuBackground</code></td><td>Static menu background</td></tr>
+              <tr><td><code>UIComponent_PressStartToPlay</code></td><td>Start prompt</td></tr>
+              <tr><td><code>UIComponent_DebugUIConsole</code></td><td>Debug text console</td></tr>
+              <tr><td><code>UIComponent_DebugUIMarketingGuide</code></td><td>Marketing debug</td></tr>
+              <tr><td><code>UIComponent_TutorialPopup</code></td><td>Tutorial popup overlay</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ================================================================
+           All 61 Menu Scenes
+           ================================================================ -->
+      <section id="menu-scenes">
+        <h2>All 61 Menu Scenes</h2>
+        <p>Every <code>UIScene</code> subclass registered in the engine, organized by functional category. Each scene corresponds to a distinct screen or overlay in the game UI.</p>
+
+        <details>
+          <summary>Container / Inventory (11)</summary>
+          <div class="details-content">
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr><th>Scene</th><th>Category</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td><code>UIScene_AbstractContainerMenu</code></td><td><span class="badge badge-category">Container</span></td></tr>
+                  <tr><td><code>UIScene_ContainerMenu</code></td><td><span class="badge badge-category">Container</span></td></tr>
+                  <tr><td><code>UIScene_InventoryMenu</code></td><td><span class="badge badge-category">Container</span></td></tr>
+                  <tr><td><code>UIScene_CraftingMenu</code></td><td><span class="badge badge-category">Container</span></td></tr>
+                  <tr><td><code>UIScene_FurnaceMenu</code></td><td><span class="badge badge-category">Container</span></td></tr>
+                  <tr><td><code>UIScene_DispenserMenu</code></td><td><span class="badge badge-category">Container</span></td></tr>
+                  <tr><td><code>UIScene_EnchantingMenu</code></td><td><span class="badge badge-category">Container</span></td></tr>
+                  <tr><td><code>UIScene_BrewingStandMenu</code></td><td><span class="badge badge-category">Container</span></td></tr>
+                  <tr><td><code>UIScene_AnvilMenu</code></td><td><span class="badge badge-category">Container</span></td></tr>
+                  <tr><td><code>UIScene_CreativeMenu</code></td><td><span class="badge badge-category">Container</span></td></tr>
+                  <tr><td><code>UIScene_TradingMenu</code></td><td><span class="badge badge-category">Container</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </details>
+
+        <details>
+          <summary>Main / Settings (13)</summary>
+          <div class="details-content">
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr><th>Scene</th><th>Category</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td><code>UIScene_MainMenu</code></td><td><span class="badge badge-type">Menu</span></td></tr>
+                  <tr><td><code>UIScene_SettingsMenu</code></td><td><span class="badge badge-type">Settings</span></td></tr>
+                  <tr><td><code>UIScene_SettingsOptionsMenu</code></td><td><span class="badge badge-type">Settings</span></td></tr>
+                  <tr><td><code>UIScene_SettingsAudioMenu</code></td><td><span class="badge badge-type">Settings</span></td></tr>
+                  <tr><td><code>UIScene_SettingsControlMenu</code></td><td><span class="badge badge-type">Settings</span></td></tr>
+                  <tr><td><code>UIScene_SettingsGraphicsMenu</code></td><td><span class="badge badge-type">Settings</span></td></tr>
+                  <tr><td><code>UIScene_SettingsUIMenu</code></td><td><span class="badge badge-type">Settings</span></td></tr>
+                  <tr><td><code>UIScene_HelpAndOptionsMenu</code></td><td><span class="badge badge-type">Menu</span></td></tr>
+                  <tr><td><code>UIScene_ControlsMenu</code></td><td><span class="badge badge-type">Settings</span></td></tr>
+                  <tr><td><code>UIScene_CreateWorldMenu</code></td><td><span class="badge badge-type">Menu</span></td></tr>
+                  <tr><td><code>UIScene_LoadOrJoinMenu</code></td><td><span class="badge badge-type">Menu</span></td></tr>
+                  <tr><td><code>UIScene_JoinMenu</code></td><td><span class="badge badge-type">Menu</span></td></tr>
+                  <tr><td><code>UIScene_LoadMenu</code></td><td><span class="badge badge-type">Menu</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </details>
+
+        <details>
+          <summary>In-Game (7)</summary>
+          <div class="details-content">
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr><th>Scene</th><th>Category</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td><code>UIScene_PauseMenu</code></td><td><span class="badge badge-platform">In-Game</span></td></tr>
+                  <tr><td><code>UIScene_DeathMenu</code></td><td><span class="badge badge-platform">In-Game</span></td></tr>
+                  <tr><td><code>UIScene_InGameHostOptionsMenu</code></td><td><span class="badge badge-platform">In-Game</span></td></tr>
+                  <tr><td><code>UIScene_InGamePlayerOptionsMenu</code></td><td><span class="badge badge-platform">In-Game</span></td></tr>
+                  <tr><td><code>UIScene_InGameInfoMenu</code></td><td><span class="badge badge-platform">In-Game</span></td></tr>
+                  <tr><td><code>UIScene_InGameSaveManagementMenu</code></td><td><span class="badge badge-platform">In-Game</span></td></tr>
+                  <tr><td><code>UIScene_HUD</code></td><td><span class="badge badge-platform">In-Game</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </details>
+
+        <details>
+          <summary>Info / Credits (6)</summary>
+          <div class="details-content">
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr><th>Scene</th><th>Category</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td><code>UIScene_HowToPlay</code></td><td><span class="badge badge-version">Info</span></td></tr>
+                  <tr><td><code>UIScene_HowToPlayMenu</code></td><td><span class="badge badge-version">Info</span></td></tr>
+                  <tr><td><code>UIScene_Credits</code></td><td><span class="badge badge-version">Info</span></td></tr>
+                  <tr><td><code>UIScene_EndPoem</code></td><td><span class="badge badge-version">Info</span></td></tr>
+                  <tr><td><code>UIScene_Intro</code></td><td><span class="badge badge-version">Info</span></td></tr>
+                  <tr><td><code>UIScene_SaveMessage</code></td><td><span class="badge badge-version">Info</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </details>
+
+        <details>
+          <summary>Special (8)</summary>
+          <div class="details-content">
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr><th>Scene</th><th>Category</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td><code>UIScene_FullscreenProgress</code></td><td><span class="badge badge-packet">Special</span></td></tr>
+                  <tr><td><code>UIScene_ConnectingProgress</code></td><td><span class="badge badge-packet">Special</span></td></tr>
+                  <tr><td><code>UIScene_MessageBox</code></td><td><span class="badge badge-packet">Special</span></td></tr>
+                  <tr><td><code>UIScene_Timer</code></td><td><span class="badge badge-packet">Special</span></td></tr>
+                  <tr><td><code>UIScene_EULA</code></td><td><span class="badge badge-packet">Special</span></td></tr>
+                  <tr><td><code>UIScene_StartGame</code></td><td><span class="badge badge-packet">Special</span></td></tr>
+                  <tr><td><code>UIScene_ReinstallMenu</code></td><td><span class="badge badge-packet">Special</span></td></tr>
+                  <tr><td><code>UIScene_TrialExitUpsell</code></td><td><span class="badge badge-packet">Special</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </details>
+
+        <details>
+          <summary>DLC (3)</summary>
+          <div class="details-content">
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr><th>Scene</th><th>Category</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td><code>UIScene_DLCMainMenu</code></td><td><span class="badge badge-deprecated">DLC</span></td></tr>
+                  <tr><td><code>UIScene_DLCOffersMenu</code></td><td><span class="badge badge-deprecated">DLC</span></td></tr>
+                  <tr><td><code>UIScene_SkinSelectMenu</code></td><td><span class="badge badge-deprecated">DLC</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </details>
+
+        <details>
+          <summary>Input (3)</summary>
+          <div class="details-content">
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr><th>Scene</th><th>Category</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td><code>UIScene_Keyboard</code></td><td><span class="badge badge-type">Input</span></td></tr>
+                  <tr><td><code>UIScene_SignEntryMenu</code></td><td><span class="badge badge-type">Input</span></td></tr>
+                  <tr><td><code>UIScene_TeleportMenu</code></td><td><span class="badge badge-type">Input</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </details>
+
+        <details>
+          <summary>Debug (5+)</summary>
+          <div class="details-content">
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr><th>Scene</th><th>Category</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td><code>UIScene_LeaderboardsMenu</code></td><td><span class="badge badge-category">Debug</span></td></tr>
+                  <tr><td><code>UIScene_LaunchMoreOptionsMenu</code></td><td><span class="badge badge-category">Debug</span></td></tr>
+                  <tr><td><code>UIScene_QuadrantSignin</code></td><td><span class="badge badge-category">Debug</span></td></tr>
+                  <tr><td><code>UIScene_DebugOptions</code></td><td><span class="badge badge-category">Debug</span></td></tr>
+                  <tr><td><code>UIScene_DebugOverlay</code></td><td><span class="badge badge-category">Debug</span></td></tr>
+                  <tr><td><code>UIScene_DebugCreateSchematic</code></td><td><span class="badge badge-category">Debug</span></td></tr>
+                  <tr><td><code>UIScene_DebugSetCamera</code></td><td><span class="badge badge-category">Debug</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </details>
+
+        <details>
+          <summary>Platform Interfaces (13)</summary>
+          <div class="details-content">
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr><th>Interface</th><th>Category</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td><code>IUIScene_PauseMenu</code></td><td><span class="badge badge-platform">Platform</span></td></tr>
+                  <tr><td><code>IUIScene_InventoryMenu</code></td><td><span class="badge badge-platform">Platform</span></td></tr>
+                  <tr><td><code>IUIScene_CraftingMenu</code></td><td><span class="badge badge-platform">Platform</span></td></tr>
+                  <tr><td><code>IUIScene_FurnaceMenu</code></td><td><span class="badge badge-platform">Platform</span></td></tr>
+                  <tr><td><code>IUIScene_ContainerMenu</code></td><td><span class="badge badge-platform">Platform</span></td></tr>
+                  <tr><td><code>IUIScene_DispenserMenu</code></td><td><span class="badge badge-platform">Platform</span></td></tr>
+                  <tr><td><code>IUIScene_EnchantingMenu</code></td><td><span class="badge badge-platform">Platform</span></td></tr>
+                  <tr><td><code>IUIScene_BrewingMenu</code></td><td><span class="badge badge-platform">Platform</span></td></tr>
+                  <tr><td><code>IUIScene_CreativeMenu</code></td><td><span class="badge badge-platform">Platform</span></td></tr>
+                  <tr><td><code>IUIScene_AnvilMenu</code></td><td><span class="badge badge-platform">Platform</span></td></tr>
+                  <tr><td><code>IUIScene_TradingMenu</code></td><td><span class="badge badge-platform">Platform</span></td></tr>
+                  <tr><td><code>IUIScene_AbstractContainerMenu</code></td><td><span class="badge badge-platform">Platform</span></td></tr>
+                  <tr><td><code>IUIScene_StartGame</code></td><td><span class="badge badge-platform">Platform</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </details>
+      </section>
+
+      <footer class="site-footer">
+        <p>LCE Documentation &mdash; Generated for the LCEMP project by notpies</p>
+      </footer>
+    </main>
+  </div>
+  <div class="search-overlay" id="search-overlay">
+    <div class="search-modal">
+      <input type="text" class="search-input-large" id="search-input" placeholder="Search documentation..." autocomplete="off">
+      <div class="search-results" id="search-results"></div>
+    </div>
+  </div>
+  <script src="js/nav.js"></script>
+  <script src="js/search.js"></script>
+</body>
+</html>

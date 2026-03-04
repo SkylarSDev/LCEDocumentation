@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LCE Documentation - Minecraft Legacy Console Edition</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <button class="hamburger" aria-label="Toggle navigation">
+    <span></span><span></span><span></span>
+  </button>
+
+  <div class="site-wrapper">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <h1 class="sidebar-title">LCE Docs</h1>
+        <p class="sidebar-subtitle">Legacy Console Edition</p>
+      </div>
+      <div class="sidebar-search">
+        <input type="text" placeholder="Search docs (Ctrl+K)" id="sidebar-search-input" autocomplete="off">
+      </div>
+      <nav class="sidebar-nav">
+        <div class="nav-section">
+          <div class="nav-section-title">Overview</div>
+          <a href="index.html" class="nav-link active">Home</a>
+          <a href="getting-started.html" class="nav-link">Getting Started</a>
+          <a href="architecture.html" class="nav-link">Architecture</a>
+        </div>
+        <div class="nav-section">
+          <div class="nav-section-title">Systems</div>
+          <a href="rendering.html" class="nav-link">Rendering</a>
+          <a href="networking.html" class="nav-link">Networking</a>
+          <a href="world-gen.html" class="nav-link">World Generation</a>
+          <a href="entities.html" class="nav-link">Entities</a>
+          <a href="tiles-items.html" class="nav-link">Tiles &amp; Items</a>
+          <a href="ui-system.html" class="nav-link">UI System</a>
+          <a href="audio.html" class="nav-link">Audio</a>
+          <a href="storage.html" class="nav-link">Storage</a>
+          <a href="gameplay.html" class="nav-link">Gameplay</a>
+          <a href="platforms.html" class="nav-link">Platforms</a>
+        </div>
+      </nav>
+    </aside>
+
+    <main class="main-content">
+      <div class="hero">
+        <h1>Minecraft Legacy Console Edition</h1>
+        <p class="subtitle">Source Code Documentation &mdash; LCEMP by notpies</p>
+        <p class="hero-description">Comprehensive developer documentation for the Minecraft Legacy Console Edition codebase, a C++ game engine originally developed by 4J Studios, now with LAN multiplayer support.</p>
+
+        <div class="hero-stats">
+          <div class="stat-card">
+            <div class="stat-value">3,594</div>
+            <div class="stat-label">Source Files</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value">6</div>
+            <div class="stat-label">Platforms</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value">193+</div>
+            <div class="stat-label">Packet Types</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value">97</div>
+            <div class="stat-label">Block Types</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value">41</div>
+            <div class="stat-label">AI Goals</div>
+          </div>
+        </div>
+      </div>
+
+      <section id="architecture-overview">
+        <h2>Architecture at a Glance</h2>
+        <div class="arch-diagram">
+          <div class="arch-row">
+            <div class="arch-box arch-primary">
+              <h3>Minecraft.Client</h3>
+              <p>Rendering, UI, Audio, Input, Platform Code</p>
+              <p class="arch-meta">~2,400+ files &bull; Win32 Executable</p>
+            </div>
+          </div>
+          <div class="arch-connector">&darr; uses &darr;</div>
+          <div class="arch-row">
+            <div class="arch-box arch-secondary">
+              <h3>Minecraft.World</h3>
+              <p>Entities, Tiles, Items, Networking, World Gen, Storage</p>
+              <p class="arch-meta">~845 headers &bull; Static Library</p>
+            </div>
+          </div>
+          <div class="arch-connector">&darr; platform layer &darr;</div>
+          <div class="arch-row arch-platforms">
+            <div class="arch-box arch-platform">Windows64</div>
+            <div class="arch-box arch-platform">Xbox 360</div>
+            <div class="arch-box arch-platform">Xbox One</div>
+            <div class="arch-box arch-platform">PS3</div>
+            <div class="arch-box arch-platform">PS4</div>
+            <div class="arch-box arch-platform">PS Vita</div>
+          </div>
+        </div>
+      </section>
+
+      <section id="quick-links">
+        <h2>Explore the Codebase</h2>
+        <div class="quick-links">
+          <a href="getting-started.html" class="quick-link-card">
+            <h3>Getting Started</h3>
+            <p>Build the project, configure assets, and launch with command-line arguments.</p>
+          </a>
+          <a href="architecture.html" class="quick-link-card">
+            <h3>Architecture</h3>
+            <p>High-level system design, game loop, threading model, and middleware stack.</p>
+          </a>
+          <a href="rendering.html" class="quick-link-card">
+            <h3>Rendering</h3>
+            <p>GameRenderer, LevelRenderer, Tesselator, 50+ entity renderers, particle system.</p>
+          </a>
+          <a href="networking.html" class="quick-link-card">
+            <h3>Networking</h3>
+            <p>Packet-based client-server model with 193+ packet types and connection management.</p>
+          </a>
+          <a href="world-gen.html" class="quick-link-card">
+            <h3>World Generation</h3>
+            <p>Biome system, noise generators, chunk pipeline, features, and dimensions.</p>
+          </a>
+          <a href="entities.html" class="quick-link-card">
+            <h3>Entities</h3>
+            <p>Entity hierarchy, 20+ mobs, 41 AI goals, A* pathfinding, and control systems.</p>
+          </a>
+          <a href="tiles-items.html" class="quick-link-card">
+            <h3>Tiles &amp; Items</h3>
+            <p>97 block types, 47 item types, tile entities, and the item registry system.</p>
+          </a>
+          <a href="ui-system.html" class="quick-link-card">
+            <h3>UI System</h3>
+            <p>Flash/Iggy-based UI with 22 control types, 61 menu scenes, and multi-resolution support.</p>
+          </a>
+          <a href="audio.html" class="quick-link-card">
+            <h3>Audio</h3>
+            <p>Miles Sound System integration, 3D positional audio, and streaming music.</p>
+          </a>
+          <a href="storage.html" class="quick-link-card">
+            <h3>Storage</h3>
+            <p>McRegion save format, compressed chunk storage, NBT serialization.</p>
+          </a>
+          <a href="gameplay.html" class="quick-link-card">
+            <h3>Gameplay</h3>
+            <p>Recipes, enchantments, commands, achievements, containers, and game rules.</p>
+          </a>
+          <a href="platforms.html" class="quick-link-card">
+            <h3>Platforms</h3>
+            <p>Platform-specific implementations for Xbox 360, PS3, PS4, Vita, Xbox One, and Windows.</p>
+          </a>
+        </div>
+      </section>
+
+      <section id="features">
+        <h2>LCEMP Features</h2>
+        <div class="feature-list">
+          <ul>
+            <li>Fully working LAN multiplayer (up to 8 players)</li>
+            <li>Block breaking and placing synced across clients</li>
+            <li>Player kick system</li>
+            <li>Keyboard and mouse support</li>
+            <li>Gamma correction fixed</li>
+            <li>Fullscreen support</li>
+          </ul>
+        </div>
+      </section>
+
+      <section id="credits">
+        <h2>Credits</h2>
+        <p>LCEMP is a Minecraft Legacy Console Edition source fork by <strong>notpies</strong> that enables LAN multiplayer alongside more complete PC compatibility. The original codebase was developed by <strong>4J Studios</strong> for console platforms.</p>
+        <p class="text-subtext0">If you use the multiplayer code or other fixes from this project in other LCE-based projects, please credit the author and link the repository.</p>
+      </section>
+
+      <footer class="site-footer">
+        <p>LCE Documentation &mdash; Generated for the LCEMP project by notpies</p>
+      </footer>
+    </main>
+  </div>
+
+  <div class="search-overlay" id="search-overlay">
+    <div class="search-modal">
+      <input type="text" class="search-input-large" id="search-input" placeholder="Search documentation..." autocomplete="off">
+      <div class="search-results" id="search-results">
+        <div class="search-hint">
+          <p>Type to search &mdash; <kbd>&#8593;</kbd><kbd>&#8595;</kbd> to navigate &mdash; <kbd>Enter</kbd> to select &mdash; <kbd>Esc</kbd> to close</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/nav.js"></script>
+  <script src="js/search.js"></script>
+</body>
+</html>

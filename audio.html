@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Audio System - LCE Documentation</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <button class="hamburger" aria-label="Toggle navigation">
+    <span></span><span></span><span></span>
+  </button>
+  <div class="site-wrapper">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <h1 class="sidebar-title">LCE Docs</h1>
+        <p class="sidebar-subtitle">Legacy Console Edition</p>
+      </div>
+      <div class="sidebar-search">
+        <input type="text" placeholder="Search docs (Ctrl+K)" id="sidebar-search-input" autocomplete="off">
+      </div>
+      <nav class="sidebar-nav">
+        <div class="nav-section">
+          <div class="nav-section-title">Overview</div>
+          <a href="index.html" class="nav-link">Home</a>
+          <a href="getting-started.html" class="nav-link">Getting Started</a>
+          <a href="architecture.html" class="nav-link">Architecture</a>
+        </div>
+        <div class="nav-section">
+          <div class="nav-section-title">Systems</div>
+          <a href="rendering.html" class="nav-link">Rendering</a>
+          <a href="networking.html" class="nav-link">Networking</a>
+          <a href="world-gen.html" class="nav-link">World Generation</a>
+          <a href="entities.html" class="nav-link">Entities</a>
+          <a href="tiles-items.html" class="nav-link">Tiles &amp; Items</a>
+          <a href="ui-system.html" class="nav-link">UI System</a>
+          <a href="audio.html" class="nav-link active">Audio</a>
+          <a href="storage.html" class="nav-link">Storage</a>
+          <a href="gameplay.html" class="nav-link">Gameplay</a>
+          <a href="platforms.html" class="nav-link">Platforms</a>
+        </div>
+      </nav>
+    </aside>
+    <main class="main-content">
+
+      <!-- Breadcrumb -->
+      <div class="breadcrumbs">
+        <a href="index.html">Home</a>
+        <span class="separator">/</span>
+        <span class="current">Audio System</span>
+      </div>
+
+      <h1>Audio System</h1>
+
+      <!-- ================================================================
+           Overview
+           ================================================================ -->
+      <section id="overview">
+        <h2>Overview</h2>
+        <p>Miles Sound System integration for audio playback. <strong>ConsoleSoundEngine</strong> provides the abstract interface, <strong>SoundEngine</strong> is the concrete implementation. Supports 3D positional audio with per-player listeners for split-screen. Streaming music system with state machine handles background tracks per dimension.</p>
+      </section>
+
+      <!-- ================================================================
+           ConsoleSoundEngine
+           ================================================================ -->
+      <section id="consolesoundengine">
+        <h2>ConsoleSoundEngine</h2>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">ConsoleSoundEngine</span>
+            <span class="badge badge-type">Abstract Base</span>
+          </div>
+          <div class="class-meta">Minecraft.Client/Common/Audio/Consoles_SoundEngine.h</div>
+          <p class="class-description">Abstract base class for platform-specific sound implementations. Defines the interface for sound playback, streaming music, and sound resource management that each platform must implement.</p>
+
+          <h4>Pure Virtual Methods</h4>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr><th>Method</th><th>Description</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>tick(shared_ptr&lt;Mob&gt;*, float)</code></td><td>Per-tick audio update with listener mob references and partial tick</td></tr>
+                <tr><td><code>destroy()</code></td><td>Shuts down the audio system and releases all resources</td></tr>
+                <tr><td><code>play(int iSound, float x, float y, float z, float volume, float pitch)</code></td><td>Plays a 3D positional sound effect at the given world coordinates</td></tr>
+                <tr><td><code>playStreaming(wstring&amp; name, float x, float y, float z, float volume, float pitch, bool bMusicDelay)</code></td><td>Plays a streaming audio track at a position with optional delay</td></tr>
+                <tr><td><code>playUI(int iSound, float volume, float pitch)</code></td><td>Plays a non-positional UI sound effect</td></tr>
+                <tr><td><code>updateMusicVolume(float)</code></td><td>Updates the global music volume level</td></tr>
+                <tr><td><code>updateSystemMusicPlaying(bool)</code></td><td>Notifies the engine whether system-level music is playing</td></tr>
+                <tr><td><code>updateSoundEffectVolume(float)</code></td><td>Updates the global sound effect volume level</td></tr>
+                <tr><td><code>init(Options*)</code></td><td>Initializes the audio engine with user options</td></tr>
+                <tr><td><code>add(wstring&amp; name, File*)</code></td><td>Registers a sound effect resource</td></tr>
+                <tr><td><code>addMusic(wstring&amp;, File*)</code></td><td>Registers a music resource</td></tr>
+                <tr><td><code>addStreaming(wstring&amp;, File*)</code></td><td>Registers a streaming audio resource</td></tr>
+                <tr><td><code>ConvertSoundPathToName(wstring&amp;, bool)</code></td><td>Converts a file path to an internal sound name identifier</td></tr>
+                <tr><td><code>playMusicTick()</code></td><td>Per-tick update for the music playback state machine</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h4>Virtual Methods</h4>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr><th>Method</th><th>Return</th><th>Description</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>GetIsPlayingStreamingCDMusic()</code></td><td><code>bool</code></td><td>Whether a music disc (CD) track is currently streaming</td></tr>
+                <tr><td><code>GetIsPlayingStreamingGameMusic()</code></td><td><code>bool</code></td><td>Whether a game background music track is currently streaming</td></tr>
+                <tr><td><code>GetIsPlayingStreamingEndMusic()</code></td><td><code>bool</code></td><td>Whether an End dimension music track is currently streaming</td></tr>
+                <tr><td><code>GetIsPlayingStreamingNetherMusic()</code></td><td><code>bool</code></td><td>Whether a Nether dimension music track is currently streaming</td></tr>
+                <tr><td><code>SetIsPlayingStreamingCDMusic(bool)</code></td><td><code>void</code></td><td>Sets the CD music playing state</td></tr>
+                <tr><td><code>SetIsPlayingStreamingGameMusic(bool)</code></td><td><code>void</code></td><td>Sets the game music playing state</td></tr>
+                <tr><td><code>SetIsPlayingStreamingEndMusic(bool)</code></td><td><code>void</code></td><td>Sets the End music playing state</td></tr>
+                <tr><td><code>SetIsPlayingStreamingNetherMusic(bool)</code></td><td><code>void</code></td><td>Sets the Nether music playing state</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================================================================
+           SoundEngine
+           ================================================================ -->
+      <section id="soundengine">
+        <h2>SoundEngine</h2>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">SoundEngine</span>
+            <span class="inheritance-badge">extends <span class="parent-class">ConsoleSoundEngine</span></span>
+          </div>
+          <div class="class-meta">Minecraft.Client/Common/Audio/SoundEngine.h</div>
+          <p class="class-description">Concrete implementation of the audio system using Miles Sound System. Manages sound banks, digital audio drivers, streaming, per-player 3D listeners, and the music playback state machine. Supports up to <code>MAX_LOCAL_PLAYERS</code> simultaneous audio listeners for split-screen play.</p>
+
+          <h4>Constants</h4>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr><th>Constant</th><th>Value</th><th>Description</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>MAX_SAME_SOUNDS_PLAYING</code></td><td><code>8</code></td><td>Maximum number of identical sounds that can play simultaneously</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h4>Key Members</h4>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr><th>Member</th><th>Type</th><th>Description</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>m_hBank</code></td><td><code>HMSOUNDBANK</code></td><td>Handle to the loaded Miles sound bank</td></tr>
+                <tr><td><code>m_hDriver</code></td><td><code>HDIGDRIVER</code></td><td>Handle to the Miles digital audio driver</td></tr>
+                <tr><td><code>m_hStream</code></td><td><code>HSTREAM</code></td><td>Handle to the current audio stream</td></tr>
+                <tr><td><code>m_ListenerA[MAX_LOCAL_PLAYERS]</code></td><td><code>AUDIO_LISTENER</code></td><td>Per-player 3D audio listener array</td></tr>
+                <tr><td><code>m_validListenerCount</code></td><td><code>int</code></td><td>Number of currently active listeners</td></tr>
+                <tr><td><code>random</code></td><td><code>Random*</code></td><td>Random number generator for music selection</td></tr>
+                <tr><td><code>m_musicID</code></td><td><code>int</code></td><td>Current music track identifier</td></tr>
+                <tr><td><code>m_iMusicDelay</code></td><td><code>int</code></td><td>Tick delay before next music track starts</td></tr>
+                <tr><td><code>m_StreamState</code></td><td><code>MUSIC_STREAMSTATE</code></td><td>Current state of the music streaming state machine</td></tr>
+                <tr><td><code>m_MusicType</code></td><td><code>eMUSICTYPE</code></td><td>Type of music currently playing (None, Game, CD)</td></tr>
+                <tr><td><code>m_StreamingAudioInfo</code></td><td><code>AUDIO_INFO</code></td><td>Info struct for the current streaming audio</td></tr>
+                <tr><td><code>m_openStreamThread</code></td><td><code>C4JThread*</code></td><td>Background thread for opening audio streams</td></tr>
+                <tr><td><code>CurrentSoundsPlaying[]</code></td><td><code>int[]</code></td><td>Tracks how many instances of each sound are currently playing</td></tr>
+                <tr><td><code>Overworld min/max</code></td><td><code>int</code></td><td>Streaming sound range for Overworld music tracks</td></tr>
+                <tr><td><code>Nether min/max</code></td><td><code>int</code></td><td>Streaming sound range for Nether music tracks</td></tr>
+                <tr><td><code>End min/max</code></td><td><code>int</code></td><td>Streaming sound range for End music tracks</td></tr>
+                <tr><td><code>CD</code></td><td><code>int</code></td><td>Streaming sound range for music disc tracks</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h4>Key Methods</h4>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr><th>Method</th><th>Description</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>play(int, float x, float y, float z, float vol, float pitch)</code></td><td>Plays a 3D positional sound effect at world coordinates</td></tr>
+                <tr><td><code>playStreaming(wstring&amp;, float x, float y, float z, float vol, float pitch, bool)</code></td><td>Begins streaming an audio track at a position</td></tr>
+                <tr><td><code>playUI(int, float vol, float pitch)</code></td><td>Plays a non-positional UI sound</td></tr>
+                <tr><td><code>playMusicTick()</code></td><td>Advances the music state machine each tick</td></tr>
+                <tr><td><code>init(Options*)</code></td><td>Initializes Miles Sound System with user options</td></tr>
+                <tr><td><code>tick(shared_ptr&lt;Mob&gt;*, float)</code></td><td>Per-tick audio update; updates listener positions and streaming state</td></tr>
+                <tr><td><code>destroy()</code></td><td>Shuts down the Miles driver and releases all audio resources</td></tr>
+                <tr><td><code>add(wstring&amp;, File*)</code></td><td>Adds a sound effect to the sound bank</td></tr>
+                <tr><td><code>addMusic(wstring&amp;, File*)</code></td><td>Adds a music track to the music bank</td></tr>
+                <tr><td><code>addStreaming(wstring&amp;, File*)</code></td><td>Adds a streaming audio resource</td></tr>
+                <tr><td><code>getMusicID(int domain)</code></td><td>Returns a random music track ID for the given dimension</td></tr>
+                <tr><td><code>getMusicID(wstring&amp;)</code></td><td>Returns the music track ID for the given track name</td></tr>
+                <tr><td><code>SetStreamingSounds(int owMin, int owMax, int netherMin, int netherMax, int endMin, int endMax, int cd1)</code></td><td>Configures the streaming sound index ranges per dimension</td></tr>
+                <tr><td><code>updateMusicVolume(float)</code></td><td>Updates the global music volume</td></tr>
+                <tr><td><code>updateSoundEffectVolume(float)</code></td><td>Updates the global sound effect volume</td></tr>
+                <tr><td><code>updateSystemMusicPlaying(bool)</code></td><td>Notifies the engine of system-level music state</td></tr>
+                <tr><td><code>isStreamingWavebankReady() &rarr; bool</code></td><td>Returns whether the streaming wavebank has finished loading</td></tr>
+                <tr><td><code>updateMiles()</code></td><td>Pumps the Miles Sound System driver for the current frame</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================================================================
+           Music System
+           ================================================================ -->
+      <section id="music-system">
+        <h2>Music System</h2>
+
+        <h3>Music Files Enum (eMUSICFILES)</h3>
+        <p>All available music tracks organized by dimension and type.</p>
+
+        <h4>Overworld</h4>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr><th>Track</th><th>Enum Value</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Calm 1</td><td><code>eStream_Overworld_Calm1</code></td></tr>
+              <tr><td>Calm 2</td><td><code>eStream_Overworld_Calm2</code></td></tr>
+              <tr><td>Calm 3</td><td><code>eStream_Overworld_Calm3</code></td></tr>
+              <tr><td>Hallway 1</td><td><code>eStream_Overworld_hal1</code></td></tr>
+              <tr><td>Hallway 2</td><td><code>eStream_Overworld_hal2</code></td></tr>
+              <tr><td>Hallway 3</td><td><code>eStream_Overworld_hal3</code></td></tr>
+              <tr><td>Hallway 4</td><td><code>eStream_Overworld_hal4</code></td></tr>
+              <tr><td>Nuance 1</td><td><code>eStream_Overworld_nuance1</code></td></tr>
+              <tr><td>Nuance 2</td><td><code>eStream_Overworld_nuance2</code></td></tr>
+              <tr><td>Creative 1</td><td><code>eStream_Overworld_Creative1</code></td></tr>
+              <tr><td>Creative 2</td><td><code>eStream_Overworld_Creative2</code></td></tr>
+              <tr><td>Creative 3</td><td><code>eStream_Overworld_Creative3</code></td></tr>
+              <tr><td>Creative 4</td><td><code>eStream_Overworld_Creative4</code></td></tr>
+              <tr><td>Creative 5</td><td><code>eStream_Overworld_Creative5</code></td></tr>
+              <tr><td>Creative 6</td><td><code>eStream_Overworld_Creative6</code></td></tr>
+              <tr><td>Menu 1</td><td><code>eStream_Overworld_Menu1</code></td></tr>
+              <tr><td>Menu 2</td><td><code>eStream_Overworld_Menu2</code></td></tr>
+              <tr><td>Menu 3</td><td><code>eStream_Overworld_Menu3</code></td></tr>
+              <tr><td>Menu 4</td><td><code>eStream_Overworld_Menu4</code></td></tr>
+              <tr><td>Piano 1</td><td><code>eStream_Overworld_piano1</code></td></tr>
+              <tr><td>Piano 2</td><td><code>eStream_Overworld_piano2</code></td></tr>
+              <tr><td>Piano 3</td><td><code>eStream_Overworld_piano3</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h4>Nether</h4>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr><th>Track</th><th>Enum Value</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Nether 1</td><td><code>eStream_Nether1</code></td></tr>
+              <tr><td>Nether 2</td><td><code>eStream_Nether2</code></td></tr>
+              <tr><td>Nether 3</td><td><code>eStream_Nether3</code></td></tr>
+              <tr><td>Nether 4</td><td><code>eStream_Nether4</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h4>The End</h4>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr><th>Track</th><th>Enum Value</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Dragon</td><td><code>eStream_end_dragon</code></td></tr>
+              <tr><td>End</td><td><code>eStream_end_end</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h4>Music Discs</h4>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr><th>Track</th><th>Enum Value</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>CD 1</td><td><code>eStream_CD_1</code></td></tr>
+              <tr><td>CD 2</td><td><code>eStream_CD_2</code></td></tr>
+              <tr><td>CD 3</td><td><code>eStream_CD_3</code></td></tr>
+              <tr><td>CD 4</td><td><code>eStream_CD_4</code></td></tr>
+              <tr><td>CD 5</td><td><code>eStream_CD_5</code></td></tr>
+              <tr><td>CD 6</td><td><code>eStream_CD_6</code></td></tr>
+              <tr><td>CD 7</td><td><code>eStream_CD_7</code></td></tr>
+              <tr><td>CD 8</td><td><code>eStream_CD_8</code></td></tr>
+              <tr><td>CD 9</td><td><code>eStream_CD_9</code></td></tr>
+              <tr><td>CD 10</td><td><code>eStream_CD_10</code></td></tr>
+              <tr><td>CD 11</td><td><code>eStream_CD_11</code></td></tr>
+              <tr><td>CD 12</td><td><code>eStream_CD_12</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>Music Type Enum (eMUSICTYPE)</h3>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr><th>Value</th><th>Description</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>None</code></td><td>No music is playing</td></tr>
+              <tr><td><code>Game</code></td><td>Background game music (dimension-based)</td></tr>
+              <tr><td><code>CD</code></td><td>Music disc playback from a jukebox</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>Stream State Machine (MUSIC_STREAMSTATE)</h3>
+        <p>The music streaming system uses a state machine to manage track lifecycle. The states and their transitions are:</p>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr><th>State</th><th>Description</th><th>Transitions To</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>Idle</code></td><td>No music is active. The system waits for a music delay timer to expire before selecting and starting a new track.</td><td><code>Stop</code></td></tr>
+              <tr><td><code>Stop</code></td><td>A request to stop the current stream has been issued. Prepares the stream for shutdown.</td><td><code>Stopping</code></td></tr>
+              <tr><td><code>Stopping</code></td><td>The stream is fading out or finalizing. Waits for the audio driver to confirm the stream has stopped.</td><td><code>Opening</code>, <code>Idle</code></td></tr>
+              <tr><td><code>Opening</code></td><td>A new track is being opened on a background thread (<code>m_openStreamThread</code>). The stream file is loaded and decoded.</td><td><code>Play</code>, <code>OpeningCancel</code></td></tr>
+              <tr><td><code>OpeningCancel</code></td><td>A cancel was requested while a track was being opened. Waits for the background thread to finish before returning to idle.</td><td><code>Idle</code></td></tr>
+              <tr><td><code>Play</code></td><td>The stream has been opened successfully. Playback is initiated with the configured volume and position.</td><td><code>Playing</code></td></tr>
+              <tr><td><code>Playing</code></td><td>The track is actively playing. The system monitors for completion, volume changes, or stop requests.</td><td><code>Completed</code>, <code>Stop</code></td></tr>
+              <tr><td><code>Completed</code></td><td>The track has finished playing. The system cleans up the stream handle and returns to idle with a new music delay.</td><td><code>Idle</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ================================================================
+           Audio Data Structures
+           ================================================================ -->
+      <section id="audio-structures">
+        <h2>Audio Data Structures</h2>
+        <p>Core data structures used throughout the audio system for spatial positioning, listener configuration, and sound playback parameters.</p>
+
+<pre><code>struct AUDIO_VECTOR {
+    float x;
+    float y;
+    float z;
+};
+
+struct AUDIO_LISTENER {
+    bool        bValid;
+    AUDIO_VECTOR vPosition;
+    AUDIO_VECTOR vOrientFront;
+};
+
+struct AUDIO_INFO {
+    float x;
+    float y;
+    float z;
+    float volume;
+    float pitch;
+    int   iSound;
+    bool  bIs3D;
+    bool  bUseSoundsPitchVal;
+};</code></pre>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr><th>Struct</th><th>Purpose</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>AUDIO_VECTOR</code></td><td>Simple 3D vector for audio positioning. Stores x, y, z float components used by the Miles Sound System for spatial calculations.</td></tr>
+              <tr><td><code>AUDIO_LISTENER</code></td><td>Represents a single audio listener in 3D space. Each split-screen player has one. Contains a validity flag, world position, and front-facing orientation vector for directional audio.</td></tr>
+              <tr><td><code>AUDIO_INFO</code></td><td>Describes a sound to be played. Packs position, volume, pitch, sound ID, and flags indicating whether the sound is 3D positional and whether to use the sound's built-in pitch value.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ================================================================
+           Platform Audio
+           ================================================================ -->
+      <section id="platform-audio">
+        <h2>Platform Audio</h2>
+        <p>Each target platform (Windows64, Xbox, Durango, PS3, Orbis, PSVita) has its own audio initialization path and driver configuration. The <strong>Miles Sound System</strong> provides the cross-platform abstraction layer, exposing a unified API across all supported consoles and PC. Music files use the <strong>Binka</strong> audio format for compressed streaming playback. Sound bank management is handled per-platform, with each platform loading its own set of compiled sound banks at startup.</p>
+      </section>
+
+      <footer class="site-footer">
+        <p>LCE Documentation &mdash; Generated for the LCEMP project by notpies</p>
+      </footer>
+    </main>
+  </div>
+  <div class="search-overlay" id="search-overlay">
+    <div class="search-modal">
+      <input type="text" class="search-input-large" id="search-input" placeholder="Search documentation..." autocomplete="off">
+      <div class="search-results" id="search-results"></div>
+    </div>
+  </div>
+  <script src="js/nav.js"></script>
+  <script src="js/search.js"></script>
+</body>
+</html>

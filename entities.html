@@ -1,0 +1,1544 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Entity System - LCE Documentation</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <button class="hamburger" aria-label="Toggle navigation"><span></span><span></span><span></span></button>
+  <div class="site-wrapper">
+    <aside class="sidebar">
+      <div class="sidebar-header"><h1 class="sidebar-title">LCE Docs</h1><p class="sidebar-subtitle">Legacy Console Edition</p></div>
+      <div class="sidebar-search"><input type="text" placeholder="Search docs (Ctrl+K)" id="sidebar-search-input" autocomplete="off"></div>
+      <nav class="sidebar-nav">
+        <div class="nav-section"><div class="nav-section-title">Overview</div><a href="index.html" class="nav-link">Home</a><a href="getting-started.html" class="nav-link">Getting Started</a><a href="architecture.html" class="nav-link">Architecture</a></div>
+        <div class="nav-section"><div class="nav-section-title">Systems</div><a href="rendering.html" class="nav-link">Rendering</a><a href="networking.html" class="nav-link">Networking</a><a href="world-gen.html" class="nav-link">World Generation</a><a href="entities.html" class="nav-link active">Entities</a><a href="tiles-items.html" class="nav-link">Tiles &amp; Items</a><a href="ui-system.html" class="nav-link">UI System</a><a href="audio.html" class="nav-link">Audio</a><a href="storage.html" class="nav-link">Storage</a><a href="gameplay.html" class="nav-link">Gameplay</a><a href="platforms.html" class="nav-link">Platforms</a></div>
+      </nav>
+    </aside>
+    <main class="main-content">
+
+      <div class="breadcrumbs"><a href="index.html">Home</a> <span class="separator">/</span> Entity System</div>
+
+      <h1>Entity System</h1>
+      <p>The entity system is the backbone of all game objects in Minecraft LCE. Every mob, player, projectile, item drop, vehicle, and special effect in the world is an entity. This page documents the full class hierarchy, the AI goal system, pathfinding infrastructure, control systems, and every concrete mob type in the codebase.</p>
+
+      <!-- ============================================================
+           Entity Hierarchy
+           ============================================================ -->
+      <section id="entity-hierarchy">
+        <h2>Entity Hierarchy</h2>
+        <p>All game objects derive from a single <code>Entity</code> base class. The hierarchy branches into living mobs (with health, AI, and navigation), projectiles, vehicles, hanging decorations, boss entities, and special-purpose types. The full inheritance tree is shown below.</p>
+
+<pre><code>Entity (enable_shared_from_this&lt;Entity&gt;)
+&#9500;&#9472;&#9472; Mob
+&#9474;   &#9500;&#9472;&#9472; PathfinderMob
+&#9474;   &#9474;   &#9500;&#9472;&#9472; AgableMob
+&#9474;   &#9474;   &#9474;   &#9500;&#9472;&#9472; Animal (+ Creature)
+&#9474;   &#9474;   &#9474;   &#9474;   &#9500;&#9472;&#9472; Cow, Pig, Sheep, Chicken
+&#9474;   &#9474;   &#9474;   &#9474;   &#9500;&#9472;&#9472; Wolf, Ocelot (tameable)
+&#9474;   &#9474;   &#9474;   &#9474;   &#9492;&#9472;&#9472; Bat
+&#9474;   &#9474;   &#9474;   &#9492;&#9472;&#9472; Villager
+&#9474;   &#9474;   &#9492;&#9472;&#9472; Monster (+ Enemy)
+&#9474;   &#9474;       &#9500;&#9472;&#9472; Creeper, Spider, CaveSpider
+&#9474;   &#9474;       &#9500;&#9472;&#9472; Zombie, PigZombie, Skeleton
+&#9474;   &#9474;       &#9500;&#9472;&#9472; Blaze, Slime, Ghast, Silverfish
+&#9474;   &#9474;       &#9492;&#9472;&#9472; Enderman
+&#9474;   &#9492;&#9472;&#9472; Player (+ CommandSender)
+&#9500;&#9472;&#9472; Arrow, Boat, ItemEntity
+&#9500;&#9472;&#9472; HangingEntity (Painting, ItemFrame)
+&#9500;&#9472;&#9472; GlobalEntity (Lightning)
+&#9500;&#9472;&#9472; BossMob, BossMobPart
+&#9492;&#9472;&#9472; PistonPieceEntity</code></pre>
+
+        <p>The hierarchy uses multiple inheritance in several places: <code>Animal</code> also extends the <code>Creature</code> interface, <code>Monster</code> extends the <code>Enemy</code> interface, and <code>Player</code> extends the <code>CommandSender</code> interface. These mixins provide trait-based classification without adding state.</p>
+      </section>
+
+      <!-- ============================================================
+           Entity Base Class
+           ============================================================ -->
+      <section id="entity-class">
+        <h2>Entity Base Class</h2>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">Entity</span>
+            <span class="badge badge-type">Base Class</span>
+          </div>
+          <div class="class-description">
+            <p><strong>File:</strong> <code>Minecraft.World/Entity.h</code></p>
+            <p><strong>Extends:</strong> <code>enable_shared_from_this&lt;Entity&gt;</code></p>
+            <p>Base class for all game objects with position, physics, collision, and serialization. Every object that exists in the world &mdash; from players and mobs to dropped items and arrows &mdash; inherits from this class. It provides the fundamental tick loop, movement and collision detection, damage handling, serialization for save/load, and synched entity data for client-server replication.</p>
+          </div>
+        </div>
+
+        <h3>Position &amp; Movement Members</h3>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Member</th>
+                <th>Type</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>x</code>, <code>y</code>, <code>z</code></td>
+                <td><code>double</code></td>
+                <td>Current world position of the entity. Updated every tick by the movement system.</td>
+              </tr>
+              <tr>
+                <td><code>xo</code>, <code>yo</code>, <code>zo</code></td>
+                <td><code>double</code></td>
+                <td>Previous tick position. Used for interpolation during rendering to produce smooth visual movement between ticks.</td>
+              </tr>
+              <tr>
+                <td><code>xd</code>, <code>yd</code>, <code>zd</code></td>
+                <td><code>double</code></td>
+                <td>Velocity (delta) on each axis. Applied to position during <code>move()</code> and modified by gravity, friction, and knockback.</td>
+              </tr>
+              <tr>
+                <td><code>yRot</code>, <code>xRot</code></td>
+                <td><code>float</code></td>
+                <td>Current rotation angles. <code>yRot</code> is the yaw (horizontal rotation, 0&ndash;360) and <code>xRot</code> is the pitch (vertical look angle, -90 to +90).</td>
+              </tr>
+              <tr>
+                <td><code>yRotO</code>, <code>xRotO</code></td>
+                <td><code>float</code></td>
+                <td>Previous tick rotation values used for interpolation, matching the old-position pattern.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>Physics Members</h3>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Member</th>
+                <th>Type</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>bb</code></td>
+                <td><code>AABB*</code></td>
+                <td>Axis-aligned bounding box used for collision detection. Defines the entity's physical volume in world space.</td>
+              </tr>
+              <tr>
+                <td><code>bbWidth</code></td>
+                <td><code>float</code></td>
+                <td>Width of the bounding box on the X and Z axes (entities are symmetrical on the horizontal plane).</td>
+              </tr>
+              <tr>
+                <td><code>bbHeight</code></td>
+                <td><code>float</code></td>
+                <td>Height of the bounding box on the Y axis.</td>
+              </tr>
+              <tr>
+                <td><code>onGround</code></td>
+                <td><code>bool</code></td>
+                <td>Whether the entity is currently standing on a solid surface. Controls jump eligibility and fall damage calculation.</td>
+              </tr>
+              <tr>
+                <td><code>horizontalCollision</code></td>
+                <td><code>bool</code></td>
+                <td>Set to <code>true</code> when the entity collides with a block on the X or Z axis during <code>move()</code>.</td>
+              </tr>
+              <tr>
+                <td><code>verticalCollision</code></td>
+                <td><code>bool</code></td>
+                <td>Set to <code>true</code> when the entity collides with a block on the Y axis (ceiling or floor contact).</td>
+              </tr>
+              <tr>
+                <td><code>fallDistance</code></td>
+                <td><code>float</code></td>
+                <td>Accumulated distance fallen since the entity last touched ground. Used to calculate fall damage on landing.</td>
+              </tr>
+              <tr>
+                <td><code>walkDist</code>, <code>walkDistO</code></td>
+                <td><code>float</code></td>
+                <td>Total distance walked (current and previous tick). Drives walk animation cycling in the renderer.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>Status Members</h3>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Member</th>
+                <th>Type</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>entityId</code></td>
+                <td><code>int</code></td>
+                <td>Unique numeric identifier assigned when the entity is added to the level. Used in networking packets to reference entities.</td>
+              </tr>
+              <tr>
+                <td><code>level</code></td>
+                <td><code>Level*</code></td>
+                <td>Pointer to the level (world) this entity belongs to. Provides access to block data, other entities, and world state.</td>
+              </tr>
+              <tr>
+                <td><code>removed</code></td>
+                <td><code>bool</code></td>
+                <td>Marks the entity for removal. When <code>true</code>, the entity will be cleaned up at the end of the current tick cycle.</td>
+              </tr>
+              <tr>
+                <td><code>tickCount</code></td>
+                <td><code>int</code></td>
+                <td>Number of ticks this entity has existed. Incremented every <code>baseTick()</code> call; used for age-based behaviors and despawning.</td>
+              </tr>
+              <tr>
+                <td><code>invulnerableTime</code></td>
+                <td><code>int</code></td>
+                <td>Remaining invulnerability frames after being hit. Prevents damage stacking from rapid successive hits.</td>
+              </tr>
+              <tr>
+                <td><code>flameTime</code></td>
+                <td><code>int</code></td>
+                <td>Remaining ticks the entity is on fire. Decrements each tick; applies fire damage periodically while positive.</td>
+              </tr>
+              <tr>
+                <td><code>entityData</code></td>
+                <td><code>shared_ptr&lt;SynchedEntityData&gt;</code></td>
+                <td>Synchronized data container for client-server replication. Stores data entries (health, flags, variant IDs) that are automatically synced over the network.</td>
+              </tr>
+              <tr>
+                <td><code>rider</code></td>
+                <td><code>weak_ptr&lt;Entity&gt;</code></td>
+                <td>The entity currently riding on top of this entity (e.g., a player riding a pig). Weak pointer to avoid circular references.</td>
+              </tr>
+              <tr>
+                <td><code>riding</code></td>
+                <td><code>shared_ptr&lt;Entity&gt;</code></td>
+                <td>The entity this entity is currently riding. Shared pointer because the ridden entity must stay alive while being ridden.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>Key Methods</h3>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Method</th>
+                <th>Signature</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>tick</code></td>
+                <td><code>void tick()</code></td>
+                <td>Main update method called every game tick (20 times per second). Subclasses override this to implement behavior.</td>
+              </tr>
+              <tr>
+                <td><code>baseTick</code></td>
+                <td><code>void baseTick()</code></td>
+                <td>Core tick logic shared by all entities: increments <code>tickCount</code>, handles fire damage, water/lava checks, and fall damage reset.</td>
+              </tr>
+              <tr>
+                <td><code>move</code></td>
+                <td><code>void move(double xa, double ya, double za, bool noEntityCubes)</code></td>
+                <td>Moves the entity by the given deltas, performing full AABB collision detection against blocks and optionally other entities. Updates <code>onGround</code>, collision flags, and <code>fallDistance</code>.</td>
+              </tr>
+              <tr>
+                <td><code>setPos</code></td>
+                <td><code>void setPos(double x, double y, double z)</code></td>
+                <td>Teleports the entity to the given coordinates. Updates the bounding box and re-registers the entity in the level's spatial grid.</td>
+              </tr>
+              <tr>
+                <td><code>turn</code></td>
+                <td><code>void turn(float xo, float yo)</code></td>
+                <td>Adjusts rotation by the given deltas. Clamps pitch to -90..+90 range and wraps yaw to 0..360.</td>
+              </tr>
+              <tr>
+                <td><code>hurt</code></td>
+                <td><code>bool hurt(DamageSource*, int damage)</code></td>
+                <td>Applies damage from a source. Returns <code>true</code> if damage was actually dealt (respects invulnerability frames). Triggers knockback and hurt animation.</td>
+              </tr>
+              <tr>
+                <td><code>die</code></td>
+                <td><code>void die(DamageSource*)</code></td>
+                <td>Called when the entity's health reaches zero. Handles death effects, loot drops, experience orbs, and marks the entity as <code>removed</code>.</td>
+              </tr>
+              <tr>
+                <td><code>isAlive</code></td>
+                <td><code>bool isAlive()</code></td>
+                <td>Returns <code>true</code> if the entity has not been removed and (for mobs) has health greater than zero.</td>
+              </tr>
+              <tr>
+                <td><code>isInWater</code></td>
+                <td><code>bool isInWater()</code></td>
+                <td>Checks whether the entity's bounding box overlaps with any water blocks.</td>
+              </tr>
+              <tr>
+                <td><code>isInLava</code></td>
+                <td><code>bool isInLava()</code></td>
+                <td>Checks whether the entity's bounding box overlaps with any lava blocks.</td>
+              </tr>
+              <tr>
+                <td><code>isInWaterOrRain</code></td>
+                <td><code>bool isInWaterOrRain()</code></td>
+                <td>Returns <code>true</code> if the entity is submerged in water or exposed to rain at its current position.</td>
+              </tr>
+              <tr>
+                <td><code>getLightColor</code></td>
+                <td><code>int getLightColor(float partialTick)</code></td>
+                <td>Returns the packed light color value at the entity's position, used for entity rendering brightness.</td>
+              </tr>
+              <tr>
+                <td><code>getBrightness</code></td>
+                <td><code>float getBrightness(float partialTick)</code></td>
+                <td>Returns the brightness level (0.0&ndash;1.0) at the entity's position for lighting calculations.</td>
+              </tr>
+              <tr>
+                <td><code>save</code></td>
+                <td><code>void save(CompoundTag*)</code></td>
+                <td>Serializes the entity's state into an NBT compound tag for world saving. Writes position, velocity, rotation, fire, and custom subclass data.</td>
+              </tr>
+              <tr>
+                <td><code>load</code></td>
+                <td><code>void load(CompoundTag*)</code></td>
+                <td>Deserializes entity state from an NBT compound tag when loading a saved world. Restores all serialized fields.</td>
+              </tr>
+              <tr>
+                <td><code>interact</code></td>
+                <td><code>bool interact(shared_ptr&lt;Player&gt;)</code></td>
+                <td>Called when a player right-clicks on this entity. Returns <code>true</code> if an interaction occurred (e.g., mounting, feeding, trading).</td>
+              </tr>
+              <tr>
+                <td><code>getCollideBox</code></td>
+                <td><code>AABB* getCollideBox()</code></td>
+                <td>Returns the entity's collision box used for entity-vs-entity collision. Can be <code>nullptr</code> for non-collidable entities.</td>
+              </tr>
+              <tr>
+                <td><code>distanceTo</code></td>
+                <td><code>double distanceTo(Entity)</code></td>
+                <td>Calculates the Euclidean distance between this entity and another entity.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           Mob Class
+           ============================================================ -->
+      <section id="mob-class">
+        <h2>Mob Class</h2>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">Mob</span>
+            <span class="badge badge-type">Living Entity</span>
+          </div>
+          <div class="class-description">
+            <p><strong>File:</strong> <code>Minecraft.World/Mob.h</code></p>
+            <p><strong>Extends:</strong> <code>Entity</code></p>
+            <p>Living entity with health, AI system, navigation, and controls. This is the base for all entities that can take damage, die, have status effects, and exhibit autonomous behavior. The Mob class introduces the AI goal system (<code>GoalSelector</code>), pathfinding navigation, and the control system trio (look, move, jump) that subclasses configure to produce specific mob behavior.</p>
+          </div>
+        </div>
+
+        <h3>Health &amp; Combat Members</h3>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Member</th>
+                <th>Type</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>health</code></td>
+                <td><code>int</code></td>
+                <td>Current health points. When this reaches zero, <code>die()</code> is called. Different mob types have different max health values.</td>
+              </tr>
+              <tr>
+                <td><code>lastHealth</code></td>
+                <td><code>int</code></td>
+                <td>Health value from the previous tick. Used to detect health changes and trigger damage flash effects on the client.</td>
+              </tr>
+              <tr>
+                <td><code>deathTime</code></td>
+                <td><code>int</code></td>
+                <td>Ticks since death. Incremented during the death animation; when it reaches 20, the entity is removed from the world.</td>
+              </tr>
+              <tr>
+                <td><code>hurtTime</code></td>
+                <td><code>int</code></td>
+                <td>Remaining ticks of the hurt animation (red flash). Set when the mob takes damage, decrements each tick.</td>
+              </tr>
+              <tr>
+                <td><code>hurtDuration</code></td>
+                <td><code>int</code></td>
+                <td>Total duration of the current hurt animation in ticks. Used to calculate the intensity of the visual hurt effect.</td>
+              </tr>
+              <tr>
+                <td><code>arrowCount</code></td>
+                <td><code>int</code></td>
+                <td>Number of arrows visually stuck in the mob. Decremented over time; purely cosmetic after the initial hit.</td>
+              </tr>
+              <tr>
+                <td><code>target</code></td>
+                <td><code>shared_ptr&lt;Mob&gt;</code></td>
+                <td>The mob's current attack target, set by the targeting goal system. AI combat goals use this to know whom to attack.</td>
+              </tr>
+              <tr>
+                <td><code>lastHurtByPlayer</code></td>
+                <td><code>shared_ptr&lt;Player&gt;</code></td>
+                <td>The last player that dealt damage to this mob. Used to determine experience and loot drop eligibility.</td>
+              </tr>
+              <tr>
+                <td><code>activeEffects</code></td>
+                <td><code>map&lt;int, MobEffectInstance*&gt;</code></td>
+                <td>Map of active status effects keyed by effect ID. Includes potion effects like speed, strength, poison, and regeneration.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>AI System Members</h3>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Member</th>
+                <th>Type</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>goalSelector</code></td>
+                <td><code>GoalSelector</code></td>
+                <td>Primary goal manager. Holds all behavior goals (movement, interaction, etc.) and evaluates them each tick by priority.</td>
+              </tr>
+              <tr>
+                <td><code>targetSelector</code></td>
+                <td><code>GoalSelector</code></td>
+                <td>Targeting goal manager. Separate from <code>goalSelector</code> so targeting decisions run independently from behavior goals.</td>
+              </tr>
+              <tr>
+                <td><code>navigation</code></td>
+                <td><code>PathNavigation*</code></td>
+                <td>Pathfinding navigation system. Manages path creation and following, allowing the mob to move toward goals while avoiding obstacles.</td>
+              </tr>
+              <tr>
+                <td><code>lookControl</code></td>
+                <td><code>LookControl*</code></td>
+                <td>Controls where the mob is looking. Goals set a wanted look direction and the control smoothly interpolates the head rotation.</td>
+              </tr>
+              <tr>
+                <td><code>moveControl</code></td>
+                <td><code>MoveControl*</code></td>
+                <td>Controls mob movement. Goals set a wanted position and speed; the control applies the appropriate movement forces each tick.</td>
+              </tr>
+              <tr>
+                <td><code>jumpControl</code></td>
+                <td><code>JumpControl*</code></td>
+                <td>Controls jumping. Goals can request a jump and the control will execute it on the next tick when conditions allow.</td>
+              </tr>
+              <tr>
+                <td><code>bodyControl</code></td>
+                <td><code>BodyControl*</code></td>
+                <td>Controls body posture and rotation. Prevents the body from rotating to unrealistic angles relative to the head.</td>
+              </tr>
+              <tr>
+                <td><code>sensing</code></td>
+                <td><code>Sensing*</code></td>
+                <td>Vision and awareness system. Caches line-of-sight checks per tick so multiple goals can query visibility efficiently.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>Key Methods</h3>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Method</th>
+                <th>Signature</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>aiStep</code></td>
+                <td><code>void aiStep()</code></td>
+                <td>Per-tick AI update. Runs goal selectors, updates navigation, applies controls, handles status effects, and manages despawn logic.</td>
+              </tr>
+              <tr>
+                <td><code>serverAiStep</code></td>
+                <td><code>void serverAiStep()</code></td>
+                <td>Server-side AI logic. Called within <code>aiStep()</code> only on the server; runs the goal selectors and navigation ticking.</td>
+              </tr>
+              <tr>
+                <td><code>hurt</code></td>
+                <td><code>bool hurt(DamageSource*, int)</code></td>
+                <td>Overrides <code>Entity::hurt</code> to add armor reduction, potion effect modifiers, and mob-specific damage responses.</td>
+              </tr>
+              <tr>
+                <td><code>doHurtTarget</code></td>
+                <td><code>bool doHurtTarget(Entity*)</code></td>
+                <td>Attacks a target entity. Applies this mob's attack damage, enchantment effects, and knockback to the target.</td>
+              </tr>
+              <tr>
+                <td><code>die</code></td>
+                <td><code>void die(DamageSource*)</code></td>
+                <td>Overrides <code>Entity::die</code> to drop mob-specific loot, award experience, play death sound, and run the death animation.</td>
+              </tr>
+              <tr>
+                <td><code>knockback</code></td>
+                <td><code>void knockback(Entity*, int, double, double)</code></td>
+                <td>Applies knockback force from a hit. The strength and direction are calculated from the attacker's position and the knockback amount.</td>
+              </tr>
+              <tr>
+                <td><code>getTarget</code></td>
+                <td><code>shared_ptr&lt;Mob&gt; getTarget()</code></td>
+                <td>Returns the mob's current attack target, or <code>nullptr</code> if no target is set.</td>
+              </tr>
+              <tr>
+                <td><code>setTarget</code></td>
+                <td><code>void setTarget(shared_ptr&lt;Mob&gt;)</code></td>
+                <td>Sets the mob's attack target. Used by targeting goals to direct combat behavior.</td>
+              </tr>
+              <tr>
+                <td><code>getMaxHealth</code></td>
+                <td><code>int getMaxHealth()</code></td>
+                <td>Returns the maximum health for this mob type. Subclasses override to define their specific max health value.</td>
+              </tr>
+              <tr>
+                <td><code>addEffect</code></td>
+                <td><code>void addEffect(MobEffectInstance*)</code></td>
+                <td>Applies a status effect (potion effect) to the mob. If an effect of the same type already exists, it is replaced if the new one is stronger or longer.</td>
+              </tr>
+              <tr>
+                <td><code>removeEffect</code></td>
+                <td><code>void removeEffect(int)</code></td>
+                <td>Removes a status effect by its effect ID.</td>
+              </tr>
+              <tr>
+                <td><code>canSee</code></td>
+                <td><code>bool canSee(Entity*)</code></td>
+                <td>Performs a line-of-sight raycast to determine if this mob can see the given entity. Results are cached in the <code>Sensing</code> system.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           PathfinderMob & AgableMob
+           ============================================================ -->
+      <section id="intermediate-classes">
+        <h2>PathfinderMob &amp; AgableMob</h2>
+        <p>These intermediate classes sit between <code>Mob</code> and the concrete mob types, adding pathfinding-driven behavior and age/breeding support respectively.</p>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">PathfinderMob</span>
+            <span class="badge badge-type">Abstract</span>
+          </div>
+          <div class="class-description">
+            <p><strong>Extends:</strong> <code>Mob</code></p>
+            <p>A mob that can pathfind through the world. Adds an explicit attack target and random stroll capabilities. Most hostile and passive mobs extend this class rather than <code>Mob</code> directly.</p>
+            <p><strong>Members:</strong> <code>Path* path</code> (current navigation path), <code>attackTarget</code> (shared pointer to the targeted entity).</p>
+            <p><strong>Key Methods:</strong></p>
+            <ul>
+              <li><code>findRandomStrollLocation()</code> &mdash; Selects a random walkable position near the mob for idle wandering behavior.</li>
+              <li><code>isPathFinding()</code> &mdash; Returns <code>true</code> if the mob is currently following an active path.</li>
+              <li><code>setPath()</code> &mdash; Assigns a new path for the navigation system to follow.</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">AgableMob</span>
+            <span class="badge badge-type">Abstract</span>
+          </div>
+          <div class="class-description">
+            <p><strong>Extends:</strong> <code>PathfinderMob</code></p>
+            <p>A mob that has an age and can breed. Negative age values indicate a baby; positive values indicate the cooldown timer after breeding. Age is stored as synched entity data so baby/adult state is replicated to clients.</p>
+            <p><strong>Members:</strong> <code>age</code> (synched <code>int</code>, negative = baby, zero = adult, positive = breeding cooldown).</p>
+            <p><strong>Key Methods:</strong></p>
+            <ul>
+              <li><code>getAge()</code> &mdash; Returns the current age value.</li>
+              <li><code>setAge(int)</code> &mdash; Sets the age. Negative values create a baby mob with smaller bounding box and rendering scale.</li>
+              <li><code>isBaby()</code> &mdash; Returns <code>true</code> if age is negative.</li>
+              <li><code>getBreedOffspring()</code> &mdash; Creates a new mob of the same type as a baby. Called during successful breeding.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           Animal Class
+           ============================================================ -->
+      <section id="animal-class">
+        <h2>Animal Class</h2>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">Animal</span>
+            <span class="badge badge-type">Passive Mob Base</span>
+          </div>
+          <div class="class-description">
+            <p><strong>Extends:</strong> <code>AgableMob</code>, <code>Creature</code></p>
+            <p>Base class for all passive breedable animals. The <code>Creature</code> mixin marks this entity type as a creature for spawning rules (spawns on grass in light). Animals can be lured with food items, enter "love mode" for breeding, and produce offspring.</p>
+            <p><strong>Members:</strong></p>
+            <ul>
+              <li><code>loveTime</code> &mdash; Ticks remaining in "love mode" (shown by heart particles). Decrements each tick; breeding occurs when two nearby animals are both in love mode.</li>
+              <li><code>loveCause</code> &mdash; The player who triggered love mode by feeding the animal. Used to award breeding experience to the correct player.</li>
+            </ul>
+            <p><strong>Key Methods:</strong></p>
+            <ul>
+              <li><code>isInLove()</code> &mdash; Returns <code>true</code> if <code>loveTime &gt; 0</code>, meaning the animal is ready to breed.</li>
+              <li><code>setInLove()</code> &mdash; Enters love mode, setting <code>loveTime</code> and spawning heart particles.</li>
+              <li><code>breedWith(Animal*)</code> &mdash; Executes breeding with another animal: spawns a baby, awards experience, and resets both animals' love timers.</li>
+              <li><code>canMate(Animal*)</code> &mdash; Returns <code>true</code> if both animals are the same type, both in love mode, and neither is a baby.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           Monster Class
+           ============================================================ -->
+      <section id="monster-class">
+        <h2>Monster Class</h2>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">Monster</span>
+            <span class="badge badge-type">Hostile Mob Base</span>
+          </div>
+          <div class="class-description">
+            <p><strong>Extends:</strong> <code>PathfinderMob</code>, <code>Enemy</code></p>
+            <p>Base class for all hostile mobs. The <code>Enemy</code> mixin marks this entity type as hostile for spawning rules (spawns in darkness) and changes how players interact with it (auto-targeting). Monsters attack players and other non-hostile mobs on sight, and only spawn in sufficiently dark areas.</p>
+            <p><strong>Members:</strong></p>
+            <ul>
+              <li><code>attackDamage</code> &mdash; Base melee attack damage dealt to targets. Modified by difficulty level and any held weapon enchantments.</li>
+            </ul>
+            <p><strong>Key Methods:</strong></p>
+            <ul>
+              <li><code>findAttackTarget()</code> &mdash; Scans for the nearest valid attack target (typically the closest player within range). Called by targeting goals.</li>
+              <li><code>isDarkEnoughToSpawn()</code> &mdash; Checks whether the light level at the mob's position is low enough for hostile mob spawning (light level 7 or below).</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           Player Class
+           ============================================================ -->
+      <section id="player-class">
+        <h2>Player Class</h2>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">Player</span>
+            <span class="badge badge-type">Player Entity</span>
+          </div>
+          <div class="class-description">
+            <p><strong>Extends:</strong> <code>Mob</code>, <code>CommandSender</code></p>
+            <p>The player entity. Unlike all other mobs, the player is driven by real user input rather than AI goals. The <code>CommandSender</code> mixin enables the player to execute chat commands. The Player class manages the player's inventory, ender chest storage, game mode abilities, food/hunger system, experience progression, and all player-specific interactions like sleeping, crafting, and container access.</p>
+            <p><strong>Members:</strong></p>
+            <ul>
+              <li><code>inventory</code> &mdash; The player's main inventory containing hotbar, armor slots, and general storage. Manages item stacking, equipment, and slot selection.</li>
+              <li><code>enderChestInventory</code> (<code>PlayerEnderChestContainer</code>) &mdash; Per-player ender chest storage. Contents are unique to each player and persist across all ender chest blocks.</li>
+              <li><code>abilities</code> (<code>Abilities</code>) &mdash; Player abilities struct controlling game mode flags: <code>mayfly</code>, <code>flying</code>, <code>instabuild</code> (creative mode), <code>invulnerable</code>, <code>mayBuild</code>, and <code>walkSpeed</code>/<code>flySpeed</code>.</li>
+              <li><code>foodData</code> (<code>FoodData</code>) &mdash; Hunger and saturation system. Tracks <code>foodLevel</code> (0&ndash;20), <code>saturationLevel</code>, and <code>exhaustionLevel</code>. Controls natural regeneration and sprint eligibility.</li>
+              <li><code>experience</code> &mdash; The player's experience points and level, used for enchanting and anvil operations.</li>
+            </ul>
+            <p><strong>Key Methods:</strong></p>
+            <ul>
+              <li><code>interact()</code> &mdash; Handles right-click interactions with entities (trading with villagers, feeding animals, mounting horses).</li>
+              <li><code>attack()</code> &mdash; Executes a melee attack on the target entity, applying weapon damage, enchantment effects, critical hits, and knockback.</li>
+              <li><code>startSleepInBed()</code> &mdash; Attempts to sleep in a bed. Checks for nearby hostile mobs, daytime restrictions, and bed occupancy before allowing sleep.</li>
+              <li><code>respawn()</code> &mdash; Resets the player after death: restores health, clears inventory (in survival), and teleports to the spawn point or bed location.</li>
+              <li><code>openContainer()</code> &mdash; Opens a container GUI (chest, furnace, crafting table, etc.) and establishes the container synchronization channel with the client.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           All Mob Types
+           ============================================================ -->
+      <section id="mob-types">
+        <h2>All Mob Types</h2>
+        <p>The following tables list every concrete mob type in the LCE codebase, organized by category. Each entry includes the entity type enum constant, source file, and implementation notes.</p>
+
+        <details open>
+          <summary>Passive Animals</summary>
+          <div class="details-content">
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Mob</th>
+                    <th>Type Enum</th>
+                    <th>File</th>
+                    <th>Notes</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><strong>Cow</strong></td>
+                    <td><code>eTYPE_COW</code></td>
+                    <td><code>Cow.h</code></td>
+                    <td>Breedable with wheat. Drops leather and raw beef. Can be milked with an empty bucket via <code>interact()</code>. Uses <code>BreedGoal</code>, <code>TemptGoal</code>, <code>PanicGoal</code>, <code>RandomStrollGoal</code>, and <code>LookAtPlayerGoal</code>.</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Pig</strong></td>
+                    <td><code>eTYPE_PIG</code></td>
+                    <td><code>Pig.h</code></td>
+                    <td>Rideable when saddled. When ridden, movement is controlled by <code>ControlledByPlayerGoal</code> using a carrot on a stick. Breedable with carrots. Drops raw porkchop. Struck by lightning, transforms into <code>PigZombie</code>.</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Sheep</strong></td>
+                    <td><code>eTYPE_SHEEP</code></td>
+                    <td><code>Sheep.h</code></td>
+                    <td>Has 16 wool color variants stored in synched entity data. Drops wool on death or when sheared with shears. Uses <code>EatTileGoal</code> to eat grass blocks and regrow wool. Breedable with wheat; baby inherits or mixes parent colors.</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Chicken</strong></td>
+                    <td><code>eTYPE_CHICKEN</code></td>
+                    <td><code>Chicken.h</code></td>
+                    <td>Lays eggs periodically (every 6000&ndash;12000 ticks). Falls slowly (reduced gravity via <code>yd</code> clamping). Drops feathers and raw chicken. Breedable with seeds. Baby chickens can spawn from thrown eggs.</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Wolf</strong></td>
+                    <td>&mdash;</td>
+                    <td><code>Wolf.h</code></td>
+                    <td>Tameable with bones (random chance per bone). Once tamed, follows owner using <code>FollowOwnerGoal</code>, attacks entities that hurt the owner (<code>OwnerHurtByTargetGoal</code>), and can sit on command (<code>SitGoal</code>). Has collar color and <code>BegGoal</code> (head tilt when player holds food). Health displayed by tail angle.</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Ocelot</strong></td>
+                    <td>&mdash;</td>
+                    <td><code>Ocelot.h</code></td>
+                    <td>Tameable cat with three skin variants (tabby, tuxedo, siamese). Tamed with raw fish. Uses <code>AvoidPlayerGoal</code> when wild and <code>OcelotSitOnTileGoal</code> when tamed (sits on chests, beds, furnaces). Creepers flee from ocelots.</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Bat</strong></td>
+                    <td>&mdash;</td>
+                    <td><code>Bat.h</code></td>
+                    <td>Passive flying ambient mob. Spawns in dark areas below y=63. Hangs upside down on blocks when idle; disturbed by nearby players. No drops. Uses custom flight movement rather than pathfinding navigation.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </details>
+
+        <details open>
+          <summary>Hostile Monsters</summary>
+          <div class="details-content">
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Mob</th>
+                    <th>Type Enum</th>
+                    <th>File</th>
+                    <th>Notes</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><strong>Creeper</strong></td>
+                    <td><code>eTYPE_CREEPER</code></td>
+                    <td><code>Creeper.h</code></td>
+                    <td>Approaches players silently, then uses <code>SwellGoal</code> to inflate and explode after a 1.5-second fuse. Explosion power scales with charged status (struck by lightning). Drops gunpowder; drops a music disc if killed by a skeleton's arrow.</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Spider</strong></td>
+                    <td><code>eTYPE_SPIDER</code></td>
+                    <td><code>Spider.h</code></td>
+                    <td>Wall climbing via custom collision logic (can ascend vertical surfaces). Hostile only in darkness; neutral in daylight. Has dark vision (not affected by light level for target detection). Drops string and spider eyes. 1% chance to spawn with a skeleton rider ("spider jockey").</td>
+                  </tr>
+                  <tr>
+                    <td><strong>CaveSpider</strong></td>
+                    <td>&mdash;</td>
+                    <td><code>CaveSpider.h</code></td>
+                    <td>Smaller variant of Spider (0.7 wide vs 1.4). Inherits all Spider behavior plus applies Poison effect on hit. Spawns exclusively from mineshaft monster spawners. Fits through 1-block gaps due to reduced hitbox.</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Zombie</strong></td>
+                    <td><code>eTYPE_ZOMBIE</code></td>
+                    <td><code>Zombie.h</code></td>
+                    <td>Melee attacker that pursues players. Has baby variant (faster, smaller). Can break doors on Hard difficulty using <code>BreakDoorGoal</code>. Burns in sunlight unless wearing a helmet. Can convert villagers into zombie villagers. Drops rotten flesh; rare iron ingot/equipment drops.</td>
+                  </tr>
+                  <tr>
+                    <td><strong>PigZombie</strong></td>
+                    <td>&mdash;</td>
+                    <td><code>PigZombie.h</code></td>
+                    <td>Nether variant of Zombie. Neutral until attacked, then all nearby pig zombies become aggressive (<code>HurtByTargetGoal</code> with group aggro). Holds a golden sword. Immune to fire and lava. Drops rotten flesh and gold nuggets.</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Skeleton</strong></td>
+                    <td><code>eTYPE_SKELETON</code></td>
+                    <td><code>Skeleton.h</code></td>
+                    <td>Ranged attacker using <code>ArrowAttackGoal</code> &mdash; strafes while shooting arrows. Burns in sunlight unless wearing a helmet. Drops bones and arrows. Can pick up and equip dropped items (weapons, armor).</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Blaze</strong></td>
+                    <td>&mdash;</td>
+                    <td><code>Blaze.h</code></td>
+                    <td>Nether fortress mob with fire-based attacks. Shoots volleys of 3 fireballs using a custom ranged attack goal. Immune to fire damage. Flies using custom movement control. Drops blaze rods. Damaged by snowballs.</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Slime</strong></td>
+                    <td>&mdash;</td>
+                    <td><code>Slime.h</code></td>
+                    <td>Size-variant mob that splits into 2&ndash;4 smaller slimes on death. Sizes are 1 (tiny), 2 (small), and 4 (big). Only the smallest size drops slimeballs. Spawns in specific chunks below y=40 and in swamp biomes at night. Uses hopping movement.</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Ghast</strong></td>
+                    <td>&mdash;</td>
+                    <td><code>Ghast.h</code></td>
+                    <td>Large flying Nether mob that shoots explosive fireballs. Fireballs can be reflected by hitting them back. 4x4x4 block hitbox. Uses custom flying navigation. Drops ghast tears and gunpowder.</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Silverfish</strong></td>
+                    <td>&mdash;</td>
+                    <td><code>Silverfish.h</code></td>
+                    <td>Small pest mob that hides inside stone, cobblestone, and stone brick blocks (monster eggs). When attacked, nearby infested blocks break to release more silverfish, creating a swarming effect. Spawns from stronghold spawners.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </details>
+
+        <details open>
+          <summary>Special Mobs</summary>
+          <div class="details-content">
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Mob</th>
+                    <th>Type Enum</th>
+                    <th>File</th>
+                    <th>Notes</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><strong>Villager</strong></td>
+                    <td>&mdash;</td>
+                    <td><code>Villager.h</code></td>
+                    <td>NPC with profession-based trading system. Professions include farmer, librarian, priest, blacksmith, and butcher. Uses <code>TradeWithPlayerGoal</code>, <code>LookAtTradingPlayerGoal</code>, <code>MakeLoveGoal</code> (villager breeding), and <code>InteractGoal</code>. Trades are randomized per villager and can be refreshed.</td>
+                  </tr>
+                  <tr>
+                    <td><strong>VillagerGolem</strong></td>
+                    <td>&mdash;</td>
+                    <td><code>VillagerGolem.h</code></td>
+                    <td>Iron golem that protects villages. Spawns naturally in villages with sufficient population or can be built by players (iron block T-shape + pumpkin). Uses <code>DefendVillageTargetGoal</code>, <code>MoveTowardsTargetGoal</code>, <code>MoveTowardsRestrictionGoal</code>, and <code>OfferFlowerGoal</code> (gives roses to baby villagers). Immune to knockback and fall damage.</td>
+                  </tr>
+                  <tr>
+                    <td><strong>BossMob / BossMobPart</strong></td>
+                    <td>&mdash;</td>
+                    <td><code>BossMob.h</code></td>
+                    <td>Ender Dragon boss entity. <code>BossMob</code> is the main entity controlling flight AI, end crystal healing, and the multi-phase attack pattern. <code>BossMobPart</code> represents the individual hitbox segments (head, body, wings, tail) that receive separate damage and have independent collision boxes.</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Enderman</strong></td>
+                    <td>&mdash;</td>
+                    <td><code>Enderman.h</code></td>
+                    <td>Teleporting hostile mob. Neutral until the player looks at its head (detected via look-vector intersection with eye hitbox). Can pick up and place blocks. Teleports randomly, when hit, or when in water/rain. Damaged by water. Drops ender pearls.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </details>
+      </section>
+
+      <!-- ============================================================
+           AI Goal System
+           ============================================================ -->
+      <section id="ai-goals">
+        <h2>AI Goal System</h2>
+        <p>The AI goal system drives all autonomous mob behavior through a priority-based goal manager called <code>GoalSelector</code>. Each mob registers a set of goals at construction time, and every tick the selector evaluates which goals should be running.</p>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">GoalSelector</span>
+            <span class="badge badge-category">AI Core</span>
+          </div>
+          <div class="class-description">
+            <p>Priority-based goal manager. Goals are registered with an integer priority (lower number = higher priority). Each tick, the selector iterates through all registered goals and determines which ones should be active based on the following lifecycle:</p>
+            <ol>
+              <li><strong><code>canUse()</code></strong> &mdash; Called on inactive goals to check if they can start. Returns <code>true</code> if preconditions are met (e.g., target in range, correct time of day, mob not already doing something more important).</li>
+              <li><strong><code>start()</code></strong> &mdash; Called once when the goal transitions from inactive to active. Performs initialization (e.g., set navigation target, begin animation, cache references).</li>
+              <li><strong><code>tick()</code></strong> &mdash; Called every tick while the goal is active. Performs the ongoing behavior (e.g., move toward target, track look direction, update timer).</li>
+              <li><strong><code>canContinueToUse()</code></strong> &mdash; Called on active goals to check if they should keep running. Returns <code>false</code> to stop the goal (e.g., target died, reached destination, timer expired).</li>
+              <li><strong><code>stop()</code></strong> &mdash; Called once when the goal transitions from active to inactive. Performs cleanup (e.g., clear navigation, reset animation state).</li>
+            </ol>
+            <p>When multiple goals can run simultaneously, higher-priority goals (lower number) take precedence and can preempt lower-priority goals. Goals also declare <strong>mutex flags</strong> to prevent incompatible goals from running at the same time (e.g., two movement goals cannot both control the mob's legs).</p>
+          </div>
+        </div>
+
+        <p>The codebase contains <strong>41 distinct AI goals</strong>, listed below in categorized tables.</p>
+
+        <details open>
+          <summary>Movement Goals (7)</summary>
+          <div class="details-content">
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Goal</th>
+                    <th>Description</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><code>RandomStrollGoal</code></td>
+                    <td>Wanders to a random nearby position when idle. Calls <code>findRandomStrollLocation()</code> to pick a walkable destination within a configurable radius. One of the lowest-priority goals, providing default idle movement.</td>
+                  </tr>
+                  <tr>
+                    <td><code>MoveTowardsTargetGoal</code></td>
+                    <td>Moves the mob toward its current attack target. Used by melee mobs (iron golems, zombies) to close distance before attacking. Continuously updates the path as the target moves.</td>
+                  </tr>
+                  <tr>
+                    <td><code>MoveTowardsRestrictionGoal</code></td>
+                    <td>Moves the mob back toward its home position (spawn point or village center). Activates when the mob has strayed too far from its restriction area. Used by village-bound mobs like iron golems.</td>
+                  </tr>
+                  <tr>
+                    <td><code>MoveThroughVillageGoal</code></td>
+                    <td>Guides mobs along village paths, navigating through doors and between buildings. Selects random village waypoints and creates paths through the village infrastructure.</td>
+                  </tr>
+                  <tr>
+                    <td><code>MoveIndoorsGoal</code></td>
+                    <td>Moves mobs indoors (into village houses) during rain or nighttime. The mob seeks the nearest door and navigates inside. Used primarily by villagers for shelter-seeking behavior.</td>
+                  </tr>
+                  <tr>
+                    <td><code>FloatGoal</code></td>
+                    <td>Causes the mob to swim upward when submerged in water. Without this goal, most mobs sink and drown. Sets the jump flag when the mob's head is underwater. Typically the highest-priority goal (priority 0).</td>
+                  </tr>
+                  <tr>
+                    <td><code>FollowParentGoal</code></td>
+                    <td>Baby animals follow their parent. Searches for the nearest adult of the same type and pathfinds toward it. Stops when within a close distance. Only active when the mob is a baby (<code>isBaby() == true</code>).</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </details>
+
+        <details open>
+          <summary>Owner Goals (2)</summary>
+          <div class="details-content">
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Goal</th>
+                    <th>Description</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><code>FollowOwnerGoal</code></td>
+                    <td>Tamed mobs follow their owner. Pathfinds toward the owner when the distance exceeds a threshold. Teleports to the owner if the distance becomes too large (>12 blocks). Disabled when the mob is sitting (<code>SitGoal</code> active).</td>
+                  </tr>
+                  <tr>
+                    <td><code>ControlledByPlayerGoal</code></td>
+                    <td>Allows a player to directly control a mob's movement when riding it (e.g., saddled pig with carrot on a stick). Overrides the normal AI movement, reading the player's input direction and applying it as the mob's movement vector. Speed is boosted briefly when the player uses the carrot on a stick.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </details>
+
+        <details open>
+          <summary>Combat Goals (5)</summary>
+          <div class="details-content">
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Goal</th>
+                    <th>Description</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><code>MeleeAttackGoal</code></td>
+                    <td>Chases and melee-attacks the target. Pathfinds toward the target, and when within reach (bounding box overlap), calls <code>doHurtTarget()</code>. Has an attack cooldown (typically 20 ticks) between swings. Includes a speed multiplier when attacking.</td>
+                  </tr>
+                  <tr>
+                    <td><code>ArrowAttackGoal</code></td>
+                    <td>Ranged bow attack behavior used by skeletons. Strafes around the target while maintaining line of sight, then charges and fires an arrow. Attack speed scales with difficulty. The mob switches to melee if the target gets too close.</td>
+                  </tr>
+                  <tr>
+                    <td><code>LeapAtTargetGoal</code></td>
+                    <td>Causes the mob to jump toward its target in a leaping attack. Used by spiders and wolves. Applies a velocity boost on the Y axis and toward the target's position. Typically a short-range engagement initiation.</td>
+                  </tr>
+                  <tr>
+                    <td><code>NearestAttackableTargetGoal</code></td>
+                    <td>Scans for the nearest entity matching a target class (e.g., Player, Villager) and sets it as the mob's attack target. Uses configurable search radius, line-of-sight requirement, and target predicate. The primary targeting goal for most hostile mobs.</td>
+                  </tr>
+                  <tr>
+                    <td><code>NonTameRandomTargetGoal</code></td>
+                    <td>Variant of <code>NearestAttackableTargetGoal</code> that only activates when the mob is not tamed. Used by wolves to hunt sheep and rabbits in their wild (untamed) state. Once tamed, this goal is suppressed.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </details>
+
+        <details open>
+          <summary>Targeting Goals (4)</summary>
+          <div class="details-content">
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Goal</th>
+                    <th>Description</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><code>HurtByTargetGoal</code></td>
+                    <td>Sets the attack target to whatever entity last hurt this mob. Provides reactive aggression &mdash; mobs fight back when attacked. Optionally alerts nearby mobs of the same type (group aggro), used by pig zombies and wolves.</td>
+                  </tr>
+                  <tr>
+                    <td><code>OwnerHurtByTargetGoal</code></td>
+                    <td>Tamed mobs target entities that hurt their owner. When the owner takes damage, this goal sets the attacker as the pet's target, causing it to defend its owner. Used by tamed wolves.</td>
+                  </tr>
+                  <tr>
+                    <td><code>OwnerHurtTargetGoal</code></td>
+                    <td>Tamed mobs target entities that the owner attacks. When the owner hits an entity, this goal sets that entity as the pet's target, causing it to assist in combat. Used by tamed wolves.</td>
+                  </tr>
+                  <tr>
+                    <td><code>DefendVillageTargetGoal</code></td>
+                    <td>Iron golems target mobs that have recently attacked a villager. Queries the village's aggressor list and targets the nearest one. Only used by <code>VillagerGolem</code>. Provides autonomous village defense.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </details>
+
+        <details open>
+          <summary>Interaction Goals (6)</summary>
+          <div class="details-content">
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Goal</th>
+                    <th>Description</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><code>BreedGoal</code></td>
+                    <td>Finds a nearby mate of the same type and moves toward it for breeding. Both animals must be in love mode (<code>isInLove()</code>). When they meet, <code>breedWith()</code> is called to spawn a baby and reset the love timers.</td>
+                  </tr>
+                  <tr>
+                    <td><code>MakeLoveGoal</code></td>
+                    <td>Villager breeding. Two villagers approach each other, and if the village has housing capacity (more doors than villagers), they produce a baby villager. Checks willingness (food items in inventory) before breeding.</td>
+                  </tr>
+                  <tr>
+                    <td><code>TemptGoal</code></td>
+                    <td>Animals follow a player holding a specific food item (wheat for cows/sheep, seeds for chickens, carrots for pigs). The mob pathfinds toward the player at increased speed. Interrupted if the player moves too far away or switches items.</td>
+                  </tr>
+                  <tr>
+                    <td><code>PlayGoal</code></td>
+                    <td>Baby villagers run around and play. Selects random destinations and moves quickly between them. Only active for baby villagers, giving them a lively, childlike behavior pattern.</td>
+                  </tr>
+                  <tr>
+                    <td><code>OfferFlowerGoal</code></td>
+                    <td>Iron golems occasionally offer a poppy (rose) to baby villagers. The golem pathfinds to a baby villager, then holds out a flower for several seconds. Purely cosmetic behavior that adds character.</td>
+                  </tr>
+                  <tr>
+                    <td><code>TakeFlowerGoal</code></td>
+                    <td>Baby villagers approach an iron golem that is offering a flower and "take" it. Complements <code>OfferFlowerGoal</code> on the villager side of the interaction.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </details>
+
+        <details open>
+          <summary>Look Goals (3)</summary>
+          <div class="details-content">
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Goal</th>
+                    <th>Description</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><code>LookAtPlayerGoal</code></td>
+                    <td>The mob turns its head to look at a nearby player. Activates when a player is within a configurable range (typically 6&ndash;8 blocks). Has a random chance of activating each tick so mobs do not stare constantly. Low priority idle behavior.</td>
+                  </tr>
+                  <tr>
+                    <td><code>LookAtTradingPlayerGoal</code></td>
+                    <td>Villagers look at the player they are currently trading with. Higher priority than generic <code>LookAtPlayerGoal</code> &mdash; ensures the villager maintains eye contact during the trade interaction for a natural feel.</td>
+                  </tr>
+                  <tr>
+                    <td><code>RandomLookAroundGoal</code></td>
+                    <td>The mob occasionally turns its head in a random direction when idle. Provides subtle ambient animation so mobs do not appear frozen when standing still. Very low priority.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </details>
+
+        <details open>
+          <summary>Door Goals (4)</summary>
+          <div class="details-content">
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Goal</th>
+                    <th>Description</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><code>OpenDoorGoal</code></td>
+                    <td>Opens wooden doors when the mob's path passes through them. Used by villagers to enter and exit buildings. The mob opens the door, walks through, then closes it behind itself. Requires <code>canOpenDoors</code> flag on the navigation.</td>
+                  </tr>
+                  <tr>
+                    <td><code>BreakDoorGoal</code></td>
+                    <td>Zombies break down wooden doors on Hard difficulty. The zombie stands at a door and progressively damages it (visual cracking stages) over several seconds until the door breaks. Only active on Hard difficulty.</td>
+                  </tr>
+                  <tr>
+                    <td><code>DoorInteractGoal</code></td>
+                    <td>Base class for door-related goals. Detects when the mob is adjacent to a door block along its path. Provides shared door-finding logic used by both <code>OpenDoorGoal</code> and <code>BreakDoorGoal</code>.</td>
+                  </tr>
+                  <tr>
+                    <td><code>RestrictOpenDoorGoal</code></td>
+                    <td>Prevents mobs from walking through open doors when they should not. Used to keep certain mobs confined to specific areas (e.g., keep a villager's movement restricted to indoors at night even if the door is open).</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </details>
+
+        <details open>
+          <summary>Environment Goals (5)</summary>
+          <div class="details-content">
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Goal</th>
+                    <th>Description</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><code>PanicGoal</code></td>
+                    <td>When hurt, the animal runs away at increased speed in a random direction. Activates whenever the mob takes damage. High priority so it overrides normal idle behavior. Used by all passive animals (cows, pigs, sheep, chickens).</td>
+                  </tr>
+                  <tr>
+                    <td><code>AvoidPlayerGoal</code></td>
+                    <td>The mob flees from nearby players. Calculates an escape vector away from the player and pathfinds along it. Used by ocelots (when wild) and villagers (when fleeing from zombies). Configurable avoidance distance and speed.</td>
+                  </tr>
+                  <tr>
+                    <td><code>FleeSunGoal</code></td>
+                    <td>Undead mobs (zombies, skeletons) seek shade when burning in sunlight. Finds the nearest block with a roof overhead and navigates to it. Critical survival behavior for undead mobs during daytime.</td>
+                  </tr>
+                  <tr>
+                    <td><code>RestrictSunGoal</code></td>
+                    <td>Prevents undead mobs from pathfinding into sunlit areas. Modifies the navigation to avoid open-sky blocks, causing the mob to prefer shaded routes. Works in conjunction with <code>FleeSunGoal</code>.</td>
+                  </tr>
+                  <tr>
+                    <td><code>EatTileGoal</code></td>
+                    <td>Sheep eat grass blocks, converting them to dirt and regrowing wool. The sheep lowers its head for a brief eating animation, then the block is changed. Also eats tall grass items. Triggers wool regrowth if the sheep has been sheared.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </details>
+
+        <details open>
+          <summary>Special Goals (4)</summary>
+          <div class="details-content">
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Goal</th>
+                    <th>Description</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><code>SwellGoal</code></td>
+                    <td>Creeper-specific explosion goal. When a player is within 3 blocks and has line of sight, the creeper begins swelling (inflating). A 30-tick fuse timer counts up; if it reaches the maximum, the creeper detonates. If the player moves away, the swell timer decreases and the creeper aborts the explosion. The swell progress is synched to clients for the visual inflation effect.</td>
+                  </tr>
+                  <tr>
+                    <td><code>SitGoal</code></td>
+                    <td>Tamed mobs sit when commanded by their owner. The mob becomes stationary and all movement goals are suppressed. Toggled by the owner right-clicking the pet. The sitting state is stored in synched entity data and persists across save/load.</td>
+                  </tr>
+                  <tr>
+                    <td><code>BegGoal</code></td>
+                    <td>Wolf-specific begging behavior. When a player within 8 blocks holds food (bones or meat), the wolf tilts its head. Purely visual &mdash; does not affect gameplay beyond the head-tilt animation. The beg state is synched to clients.</td>
+                  </tr>
+                  <tr>
+                    <td><code>OcelotSitOnTileGoal</code></td>
+                    <td>Tamed cats seek out and sit on specific blocks: chests, beds, and active furnaces. The cat pathfinds to the nearest qualifying block and perches on top of it. When sitting on a chest, the chest cannot be opened by players &mdash; a deliberate game mechanic.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </details>
+
+        <details open>
+          <summary>NPC Goals (2)</summary>
+          <div class="details-content">
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Goal</th>
+                    <th>Description</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><code>TradeWithPlayerGoal</code></td>
+                    <td>Manages the villager's side of the trading interaction. Keeps the villager stationary and facing the trading player while the trade GUI is open. Ends when the player closes the trade window or moves too far away.</td>
+                  </tr>
+                  <tr>
+                    <td><code>InteractGoal</code></td>
+                    <td>General villager-to-villager interaction. Villagers approach each other and "socialize" by standing face-to-face. Serves as a precondition for <code>MakeLoveGoal</code> (breeding) and adds ambient social behavior to villages.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </details>
+      </section>
+
+      <!-- ============================================================
+           Pathfinding
+           ============================================================ -->
+      <section id="pathfinding">
+        <h2>Pathfinding</h2>
+        <p>The pathfinding system enables mobs to navigate around obstacles, through doors, and across terrain to reach their destinations. It consists of three main classes: the A* algorithm implementation (<code>PathFinder</code>), the navigation manager (<code>PathNavigation</code>), and the path data structure (<code>Path</code>).</p>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">PathFinder</span>
+            <span class="badge badge-category">A* Algorithm</span>
+          </div>
+          <div class="class-description">
+            <p>Implements the A* search algorithm for finding optimal paths through the block grid. Takes a start and end position, explores neighboring nodes weighted by traversal cost, and produces the shortest walkable path.</p>
+            <p><strong>Members:</strong></p>
+            <ul>
+              <li><code>level</code> (<code>LevelSource*</code>) &mdash; Reference to the level for block data lookups during pathfinding.</li>
+              <li><code>openSet</code> (<code>BinaryHeap</code>) &mdash; Priority queue of nodes to explore, ordered by estimated total cost (g + h). Uses a binary min-heap for efficient extraction of the lowest-cost node.</li>
+              <li><code>nodes</code> (<code>map</code>) &mdash; Map of all explored nodes keyed by position, preventing duplicate exploration and enabling path reconstruction.</li>
+              <li><code>neighbors</code> &mdash; Reusable buffer for neighboring nodes during expansion. Avoids repeated allocation during the search loop.</li>
+            </ul>
+            <p><strong>Key Methods:</strong></p>
+            <ul>
+              <li><code>findPath(Entity from, Entity to, float maxDist)</code> &mdash; Finds a path from one entity to another. The <code>maxDist</code> parameter limits the search radius to prevent expensive long-distance searches.</li>
+              <li><code>findPath(Entity, int x, int y, int z, float maxDist)</code> &mdash; Finds a path from an entity to a specific block coordinate. Used when the target is a position rather than an entity.</li>
+              <li><code>getNeighbors()</code> &mdash; Returns the walkable neighbors of the current node. Checks all 6 cardinal directions (and diagonals on the horizontal plane) for traversability.</li>
+              <li><code>isFree()</code> &mdash; Checks whether a given block position is free for the mob to occupy. Considers block solidity, the mob's bounding box dimensions, and water/lava avoidance settings.</li>
+            </ul>
+          </div>
+        </div>
+
+        <h3>Node Types</h3>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Constant</th>
+                <th>Value</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>WALKABLE</code></td>
+                <td><code>2</code></td>
+                <td>The node is on solid ground and the mob can walk through it freely. Standard traversal cost.</td>
+              </tr>
+              <tr>
+                <td><code>OPEN</code></td>
+                <td><code>1</code></td>
+                <td>The node is passable but not on solid ground (e.g., air above a gap). The mob would need to fall or jump to reach it.</td>
+              </tr>
+              <tr>
+                <td><code>BLOCKED</code></td>
+                <td><code>0</code></td>
+                <td>The node is occupied by a solid block and cannot be traversed. The pathfinder routes around blocked nodes.</td>
+              </tr>
+              <tr>
+                <td><code>WATER</code></td>
+                <td><code>-1</code></td>
+                <td>The node is in water. Mobs with <code>avoidWater</code> enabled will not path through these nodes. Aquatic mobs treat these as normal walkable nodes.</td>
+              </tr>
+              <tr>
+                <td><code>LAVA</code></td>
+                <td><code>-2</code></td>
+                <td>The node is in lava. Almost all mobs avoid lava nodes. Fire-immune mobs (blazes, pig zombies) may traverse these.</td>
+              </tr>
+              <tr>
+                <td><code>FENCE</code></td>
+                <td><code>-3</code></td>
+                <td>The node is on top of a fence or wall. Has a 1.5-block effective height, making it impassable to standard-height mobs. Prevents mobs from pathing over fences.</td>
+              </tr>
+              <tr>
+                <td><code>TRAP</code></td>
+                <td><code>-4</code></td>
+                <td>The node contains a hazard (cactus, fire, etc.). The pathfinder adds a large extra cost to traversing traps, making mobs avoid them unless no other path exists.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">PathNavigation</span>
+            <span class="badge badge-category">Navigation Manager</span>
+          </div>
+          <div class="class-description">
+            <p>Manages mob pathfinding at a high level. Creates paths via <code>PathFinder</code>, follows them tick-by-tick, and handles path invalidation when blocks change or the target moves. Each mob has its own <code>PathNavigation</code> instance configured with mob-specific settings.</p>
+            <p><strong>Members:</strong></p>
+            <ul>
+              <li><code>path</code> (<code>Path*</code>) &mdash; The currently active path being followed. <code>nullptr</code> when the mob has no destination.</li>
+              <li><code>speed</code> &mdash; Movement speed multiplier applied when following the path. Set by the goal that initiated the path.</li>
+              <li><code>maxDist</code> &mdash; Maximum pathfinding search distance. Limits A* expansion to prevent expensive searches. Typically 16&ndash;32 blocks.</li>
+              <li><code>canPassDoors</code> &mdash; Whether the mob can path through closed door blocks (treats doors as passable).</li>
+              <li><code>canOpenDoors</code> &mdash; Whether the mob can actually open doors when it reaches them. Requires <code>canPassDoors</code> to be true.</li>
+              <li><code>avoidSun</code> &mdash; Whether the mob avoids sunlit blocks (used by undead mobs to stay in shade).</li>
+              <li><code>avoidWater</code> &mdash; Whether the mob avoids water blocks during pathfinding.</li>
+              <li><code>canFloat</code> &mdash; Whether the mob can swim (path through water surface) rather than sinking.</li>
+            </ul>
+            <p><strong>Key Methods:</strong></p>
+            <ul>
+              <li><code>createPath(int x, int y, int z)</code> &mdash; Creates a new path to the given block coordinates using the A* pathfinder.</li>
+              <li><code>createPath(Mob target)</code> &mdash; Creates a path to a target mob's current position.</li>
+              <li><code>moveTo()</code> &mdash; Begins following the current path. Sets the mob's movement control to walk toward the next path node.</li>
+              <li><code>tick()</code> &mdash; Per-tick navigation update. Advances along the path, checks for obstacles, and recalculates the path if the current one becomes invalid.</li>
+              <li><code>isDone()</code> &mdash; Returns <code>true</code> if the mob has reached the end of its path or has no active path.</li>
+              <li><code>setAvoidWater(bool)</code> &mdash; Enables or disables water avoidance for this mob's pathfinding.</li>
+              <li><code>setCanOpenDoors(bool)</code> &mdash; Enables or disables the ability to open doors during pathfinding.</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">Path</span>
+            <span class="badge badge-category">Path Data</span>
+          </div>
+          <div class="class-description">
+            <p>Represents a calculated path as an ordered sequence of nodes from start to destination. Produced by <code>PathFinder</code> and consumed by <code>PathNavigation</code>. The path is immutable once created; if the environment changes, a new path must be calculated.</p>
+            <p><strong>Members:</strong></p>
+            <ul>
+              <li><code>nodes</code> (<code>NodeArray</code>) &mdash; Ordered array of path nodes from start to end. Each node contains a block position (x, y, z) and the node type.</li>
+              <li><code>index</code> &mdash; Current position along the path. Incremented as the mob reaches each successive node.</li>
+              <li><code>length</code> &mdash; Total number of nodes in the path.</li>
+            </ul>
+            <p><strong>Key Methods:</strong></p>
+            <ul>
+              <li><code>next()</code> &mdash; Advances to the next node in the path. Increments <code>index</code>.</li>
+              <li><code>isDone()</code> &mdash; Returns <code>true</code> if <code>index &gt;= length</code>, meaning the mob has traversed the entire path.</li>
+              <li><code>get(int i)</code> &mdash; Returns the node at position <code>i</code> in the path array.</li>
+              <li><code>currentPos(Entity)</code> &mdash; Returns the world position of the current node, adjusted to the entity's Y offset.</li>
+              <li><code>endsIn(Pos)</code> &mdash; Returns <code>true</code> if the path's final node matches the given block position. Used to check if a path actually reaches the intended destination.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           Control Systems
+           ============================================================ -->
+      <section id="controls">
+        <h2>Control Systems</h2>
+        <p>Control systems act as the interface between AI goals and the mob's physical movement. Goals set desired states (where to look, where to move, whether to jump) and the controls translate those desires into smooth, physically plausible motion each tick.</p>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">LookControl</span>
+            <span class="badge badge-category">Head Rotation</span>
+          </div>
+          <div class="class-description">
+            <p>Controls the mob's head rotation. Goals call <code>setLookAt()</code> to specify a target position, and the control smoothly interpolates the head rotation toward that position over multiple ticks.</p>
+            <p><strong>Members:</strong> <code>wantedX</code>, <code>wantedY</code>, <code>wantedZ</code> (target look position), <code>yMax</code> (maximum yaw rotation per tick), <code>xMax</code> (maximum pitch rotation per tick).</p>
+            <p><strong>Behavior:</strong> <code>tick()</code> calculates the angle difference between the current and wanted look direction, then applies a clamped rotation step. This produces smooth, natural-looking head movement rather than instant snapping.</p>
+          </div>
+        </div>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">MoveControl</span>
+            <span class="badge badge-category">Movement</span>
+          </div>
+          <div class="class-description">
+            <p>Controls the mob's ground and swimming movement. Goals call <code>setWantedPosition()</code> with a target coordinate and speed, and the control applies the appropriate movement forces each tick.</p>
+            <p><strong>Members:</strong> <code>wantedX</code>, <code>wantedY</code>, <code>wantedZ</code> (target position), <code>speed</code> (movement speed multiplier).</p>
+            <p><strong>Behavior:</strong> <code>tick()</code> calculates the direction toward the wanted position, rotates the mob to face that direction, and applies forward movement at the configured speed. Handles both ground walking and swimming movement.</p>
+          </div>
+        </div>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">JumpControl</span>
+            <span class="badge badge-category">Jumping</span>
+          </div>
+          <div class="class-description">
+            <p>Manages jump requests. Goals call <code>jump()</code> to request a jump, and the control executes it on the next tick when the mob is on the ground.</p>
+            <p><strong>Methods:</strong> <code>jump()</code> &mdash; Sets the jump flag. <code>tick()</code> &mdash; If the jump flag is set and the mob is <code>onGround</code>, applies an upward velocity impulse and clears the flag.</p>
+          </div>
+        </div>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">BodyControl</span>
+            <span class="badge badge-category">Body Posture</span>
+          </div>
+          <div class="class-description">
+            <p>Controls body rotation relative to the head. Prevents the body from rotating to unrealistic angles when the head is turned far to the side.</p>
+            <p><strong>Behavior:</strong> <code>clamp()</code> checks the angle between the head yaw and body yaw. If the difference exceeds the maximum allowed angle, the body is gradually rotated to follow the head, producing a natural turning animation rather than a disjointed appearance.</p>
+          </div>
+        </div>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">Sensing</span>
+            <span class="badge badge-category">Vision System</span>
+          </div>
+          <div class="class-description">
+            <p>Provides cached line-of-sight checks for the mob's AI system. Multiple goals can query visibility of the same entity without duplicating expensive raycasts.</p>
+            <p><strong>Methods:</strong> <code>canSee(Entity*)</code> &mdash; Returns whether this mob has line of sight to the given entity. Results are cached per tick so the first call performs a raycast and subsequent calls return the cached result.</p>
+            <p><strong>Behavior:</strong> Tracks two lists internally &mdash; <code>seen</code> entities and <code>unseen</code> entities &mdash; which are cleared and rebuilt each tick. The raycast checks for solid block obstruction between the mob's eyes and the target's eye height.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           Other Entity Types
+           ============================================================ -->
+      <section id="other-entities">
+        <h2>Other Entity Types</h2>
+        <p>Beyond mobs and players, the entity system includes several non-living entity types that handle projectiles, vehicles, items, decorations, weather effects, and mechanical blocks.</p>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">Arrow</span>
+            <span class="badge badge-type">Projectile</span>
+          </div>
+          <div class="class-description">
+            <p>Projectile entity fired by bows and skeleton mobs. Travels in a ballistic arc with gravity. On collision with a mob, applies damage based on velocity magnitude. On collision with a block, sticks in place and can be picked up by the player after a short delay. Supports enchantment effects (fire, infinity, power) applied at launch time. Tracks the shooter entity to prevent self-damage.</p>
+          </div>
+        </div>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">Boat</span>
+            <span class="badge badge-type">Vehicle</span>
+          </div>
+          <div class="class-description">
+            <p>Rideable vehicle entity for water transport. Floats on water surfaces and can be steered by the riding player. Has its own collision and physics system tuned for water interaction (buoyancy, drag). Can be placed on land but moves very slowly. Breaks into planks and sticks if it hits a block at sufficient speed or takes enough damage.</p>
+          </div>
+        </div>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">ItemEntity</span>
+            <span class="badge badge-type">Dropped Item</span>
+          </div>
+          <div class="class-description">
+            <p>Represents an item dropped in the world. Has full physics (gravity, block collision, water floating) and a bobbing/spinning visual animation. Nearby matching item entities merge stacks automatically. Picked up by players who walk over them (added to inventory). Despawns after 5 minutes (6000 ticks) to prevent accumulation. Destroyed by fire, lava, explosions, and cacti.</p>
+          </div>
+        </div>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">HangingEntity</span>
+            <span class="badge badge-type">Wall Decoration</span>
+          </div>
+          <div class="class-description">
+            <p>Base class for entities that hang on walls: <code>Painting</code> and <code>ItemFrame</code>. Attached to a specific block face and direction. Checks each tick that the supporting block still exists; drops as an item if the block is removed. Has a specialized flat bounding box oriented along the wall surface.</p>
+          </div>
+        </div>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">GlobalEntity</span>
+            <span class="badge badge-type">Weather Effect</span>
+          </div>
+          <div class="class-description">
+            <p>Lightning bolt entity. Exists briefly in the world, dealing damage to nearby entities, setting fire to blocks, and producing the lightning visual/audio effect. Can convert pigs to pig zombies, charge creepers, and transform villagers. Rendered globally (visible from any distance) rather than being culled by normal entity render distance.</p>
+          </div>
+        </div>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">ItemFrame</span>
+            <span class="badge badge-type">Display Entity</span>
+          </div>
+          <div class="class-description">
+            <p>Extends <code>HangingEntity</code>. Displays an item on a wall surface. The contained item can be rotated in 8 orientations by right-clicking. When an item frame contains a map, the map is rendered on the wall at full scale. Drops both the frame and the contained item when broken.</p>
+          </div>
+        </div>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">PistonPieceEntity</span>
+            <span class="badge badge-type">Mechanical</span>
+          </div>
+          <div class="class-description">
+            <p>Temporary entity representing a block being pushed or pulled by a piston. Exists for exactly 2 ticks (one piston extension cycle) while the block visually slides from its old position to its new position. Handles the rendering of the moving block and its collision during the transition. Replaced by a normal block at the destination once the piston cycle completes.</p>
+          </div>
+        </div>
+      </section>
+
+      <hr>
+
+      <p class="text-subtext0">This page covers the entity system in full. For how entities are rendered, see <a href="rendering.html">Rendering</a>. For entity serialization and save format, see <a href="storage.html">Storage</a>. For entity-related networking packets, see <a href="networking.html">Networking</a>.</p>
+
+      <footer class="site-footer"><p>LCE Documentation &mdash; Generated for the LCEMP project by notpies</p></footer>
+    </main>
+  </div>
+  <div class="search-overlay" id="search-overlay"><div class="search-modal"><input type="text" class="search-input-large" id="search-input" placeholder="Search documentation..." autocomplete="off"><div class="search-results" id="search-results"></div></div></div>
+  <script src="js/nav.js"></script>
+  <script src="js/search.js"></script>
+</body>
+</html>

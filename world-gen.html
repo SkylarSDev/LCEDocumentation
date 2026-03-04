@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>World Generation - LCE Documentation</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <button class="hamburger" aria-label="Toggle navigation">
+    <span></span><span></span><span></span>
+  </button>
+  <div class="site-wrapper">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <h1 class="sidebar-title">LCE Docs</h1>
+        <p class="sidebar-subtitle">Legacy Console Edition</p>
+      </div>
+      <div class="sidebar-search">
+        <input type="text" placeholder="Search docs (Ctrl+K)" id="sidebar-search-input" autocomplete="off">
+      </div>
+      <nav class="sidebar-nav">
+        <div class="nav-section">
+          <div class="nav-section-title">Overview</div>
+          <a href="index.html" class="nav-link">Home</a>
+          <a href="getting-started.html" class="nav-link">Getting Started</a>
+          <a href="architecture.html" class="nav-link">Architecture</a>
+        </div>
+        <div class="nav-section">
+          <div class="nav-section-title">Systems</div>
+          <a href="rendering.html" class="nav-link">Rendering</a>
+          <a href="networking.html" class="nav-link">Networking</a>
+          <a href="world-gen.html" class="nav-link active">World Generation</a>
+          <a href="entities.html" class="nav-link">Entities</a>
+          <a href="tiles-items.html" class="nav-link">Tiles &amp; Items</a>
+          <a href="ui-system.html" class="nav-link">UI System</a>
+          <a href="audio.html" class="nav-link">Audio</a>
+          <a href="storage.html" class="nav-link">Storage</a>
+          <a href="gameplay.html" class="nav-link">Gameplay</a>
+          <a href="platforms.html" class="nav-link">Platforms</a>
+        </div>
+      </nav>
+    </aside>
+    <main class="main-content">
+
+      <div class="breadcrumbs"><a href="index.html">Home</a> <span class="separator">/</span> World Generation</div>
+
+      <h1>World Generation</h1>
+      <p>Layer-based biome generation system with noise-driven terrain. The chunk generation pipeline flows from <code>BiomeSource</code> through <code>LevelSource</code> to <code>ChunkStorage</code>. Three dimensions (Overworld, Nether, The End) each with unique generation. The features system handles structures and decorations.</p>
+
+      <!-- ============================================================
+           Biome Base Class
+           ============================================================ -->
+      <section id="biome">
+        <h2>Biome Base Class</h2>
+        <p>Base class for all biome types. Defines terrain properties, vegetation, and mob spawning rules.</p>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">Biome</span>
+            <span class="badge badge-category">World Gen</span>
+          </div>
+          <div class="class-meta">Minecraft.World/Biome.h</div>
+          <div class="class-description">
+            <p>Base class for all biome types. Defines terrain properties, vegetation, and mob spawning. Contains a static registry of all biome instances.</p>
+
+            <h4>Static Members</h4>
+            <dl class="member-list">
+              <dt>biomes[256]</dt>
+              <dd>Static array registry holding all biome instances indexed by biome ID.</dd>
+              <dt>BIOME_COUNT = 23</dt>
+              <dd>Total number of registered biome types.</dd>
+            </dl>
+
+            <h4>Nested Class</h4>
+            <div class="method-signature">MobSpawnerData(<span class="keyword">eINSTANCEOF</span> mobClass, <span class="type">int</span> weight, <span class="type">int</span> minCount, <span class="type">int</span> maxCount) <span class="keyword">extends</span> <span class="type">WeighedRandomItem</span></div>
+            <p>Defines a mob spawn entry with the mob type, spawn weight, and group size range.</p>
+
+            <h4>Members</h4>
+            <dl class="member-list">
+              <dt>id <span class="text-overlay0">(const int)</span></dt>
+              <dd>Unique biome identifier used as the index into the <code>biomes[]</code> registry.</dd>
+              <dt>name <span class="text-overlay0">(wstring)</span></dt>
+              <dd>Display name of the biome.</dd>
+              <dt>color</dt>
+              <dd>Color value used for map rendering.</dd>
+              <dt>topMaterial / material <span class="text-overlay0">(byte)</span></dt>
+              <dd>Surface block type (e.g., grass) and subsurface block type (e.g., dirt).</dd>
+              <dt>depth / scale <span class="text-overlay0">(float)</span></dt>
+              <dd>Terrain height parameters &mdash; depth controls base elevation, scale controls variation.</dd>
+              <dt>temperature / downfall <span class="text-overlay0">(float)</span></dt>
+              <dd>Climate values that determine snow, rain, grass/foliage color tinting.</dd>
+              <dt>enemies <span class="text-overlay0">(vector&lt;MobSpawnerData&gt;)</span></dt>
+              <dd>Hostile mob spawn list for this biome.</dd>
+              <dt>friendlies <span class="text-overlay0">(vector&lt;MobSpawnerData&gt;)</span></dt>
+              <dd>Passive mob spawn list for this biome.</dd>
+              <dt>waterFriendlies <span class="text-overlay0">(vector&lt;MobSpawnerData&gt;)</span></dt>
+              <dd>Water-based mob spawn list for this biome.</dd>
+              <dt>decorator <span class="text-overlay0">(BiomeDecorator*)</span></dt>
+              <dd>Pointer to the decorator responsible for placing trees, flowers, ores, and structures.</dd>
+            </dl>
+
+            <h4>Methods</h4>
+            <dl class="method-list">
+              <dt>getTreeFeature(Random*) &rarr; Feature*</dt>
+              <dd>Returns a tree feature appropriate for this biome, selected using the random source.</dd>
+              <dt>getGrassFeature(Random*) &rarr; Feature*</dt>
+              <dd>Returns a grass/plant feature appropriate for this biome.</dd>
+              <dt>getMobs(MobCategory*) &rarr; vector*</dt>
+              <dd>Returns the mob spawn list for the given category (enemies, friendlies, waterFriendlies).</dd>
+              <dt>decorate(Level*, Random*, int, int)</dt>
+              <dd>Decorates a chunk at the given coordinates by delegating to the biome's decorator.</dd>
+              <dt>hasSnow() &rarr; bool</dt>
+              <dd>Returns true if temperature is low enough for snow cover.</dd>
+              <dt>hasRain() &rarr; bool</dt>
+              <dd>Returns true if the biome receives rain (temperature below 2.0 and downfall above 0.0).</dd>
+              <dt>isHumid() &rarr; bool</dt>
+              <dd>Returns true if the biome's downfall is above 0.85.</dd>
+              <dt>getTemperature() &rarr; float</dt>
+              <dd>Returns the biome's base temperature value.</dd>
+              <dt>getDownfall() &rarr; float</dt>
+              <dd>Returns the biome's base downfall/rainfall value.</dd>
+              <dt>getGrassColor() &rarr; int</dt>
+              <dd>Computes and returns the grass color based on temperature and downfall.</dd>
+              <dt>getFolageColor() &rarr; int</dt>
+              <dd>Computes and returns the foliage color based on temperature and downfall.</dd>
+              <dt>getWaterColor() &rarr; int</dt>
+              <dd>Returns the water color tint for this biome.</dd>
+            </dl>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           Biome Types
+           ============================================================ -->
+      <section id="biome-types">
+        <h2>Biome Types</h2>
+        <p>The engine defines 15 concrete biome classes, each with distinct terrain, climate, and spawning characteristics. All biome classes extend the <code>Biome</code> base class.</p>
+
+        <details>
+          <summary>All 15 Biome Classes</summary>
+          <div class="details-content">
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Biome Class</th>
+                    <th>ID</th>
+                    <th>Top Block</th>
+                    <th>Temperature</th>
+                    <th>Rainfall</th>
+                    <th>Features</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><code>OceanBiome</code></td>
+                    <td>0</td>
+                    <td>Grass</td>
+                    <td>0.5</td>
+                    <td>0.5</td>
+                    <td>Deep water, squid spawning</td>
+                  </tr>
+                  <tr>
+                    <td><code>PlainsBiome</code></td>
+                    <td>1</td>
+                    <td>Grass</td>
+                    <td>0.8</td>
+                    <td>0.4</td>
+                    <td>Flat terrain, flowers, tall grass</td>
+                  </tr>
+                  <tr>
+                    <td><code>DesertBiome</code></td>
+                    <td>2</td>
+                    <td>Sand</td>
+                    <td>2.0</td>
+                    <td>0.0</td>
+                    <td>Cacti, dead bushes, no rain</td>
+                  </tr>
+                  <tr>
+                    <td><code>ExtremeHillsBiome</code></td>
+                    <td>3</td>
+                    <td>Grass</td>
+                    <td>0.2</td>
+                    <td>0.3</td>
+                    <td>Tall terrain, emerald ore</td>
+                  </tr>
+                  <tr>
+                    <td><code>ForestBiome</code></td>
+                    <td>4</td>
+                    <td>Grass</td>
+                    <td>0.7</td>
+                    <td>0.8</td>
+                    <td>Oak/birch trees, wolves</td>
+                  </tr>
+                  <tr>
+                    <td><code>TaigaBiome</code></td>
+                    <td>5</td>
+                    <td>Grass</td>
+                    <td>0.05</td>
+                    <td>0.8</td>
+                    <td>Spruce trees, snow</td>
+                  </tr>
+                  <tr>
+                    <td><code>SwampBiome</code></td>
+                    <td>6</td>
+                    <td>Grass</td>
+                    <td>0.8</td>
+                    <td>0.9</td>
+                    <td>Shallow water, lily pads, slimes</td>
+                  </tr>
+                  <tr>
+                    <td><code>RiverBiome</code></td>
+                    <td>7</td>
+                    <td>Sand</td>
+                    <td>0.5</td>
+                    <td>0.5</td>
+                    <td>Narrow water channels</td>
+                  </tr>
+                  <tr>
+                    <td><code>HellBiome</code></td>
+                    <td>8</td>
+                    <td>Netherrack</td>
+                    <td>2.0</td>
+                    <td>0.0</td>
+                    <td>Nether dimension biome</td>
+                  </tr>
+                  <tr>
+                    <td><code>TheEndBiome</code></td>
+                    <td>9</td>
+                    <td>End Stone</td>
+                    <td>0.5</td>
+                    <td>0.5</td>
+                    <td>End dimension biome</td>
+                  </tr>
+                  <tr>
+                    <td><code>IceBiome</code></td>
+                    <td>10</td>
+                    <td>Grass</td>
+                    <td>0.0</td>
+                    <td>0.5</td>
+                    <td>Frozen lakes, snow, igloos</td>
+                  </tr>
+                  <tr>
+                    <td><code>MushroomIslandBiome</code></td>
+                    <td>14</td>
+                    <td>Mycelium</td>
+                    <td>0.9</td>
+                    <td>1.0</td>
+                    <td>Huge mushrooms, mooshrooms</td>
+                  </tr>
+                  <tr>
+                    <td><code>BeachBiome</code></td>
+                    <td>16</td>
+                    <td>Sand</td>
+                    <td>0.8</td>
+                    <td>0.4</td>
+                    <td>Sandy shore between ocean and land</td>
+                  </tr>
+                  <tr>
+                    <td><code>JungleBiome</code></td>
+                    <td>21</td>
+                    <td>Grass</td>
+                    <td>0.95</td>
+                    <td>0.9</td>
+                    <td>Tall trees, cocoa, ocelots</td>
+                  </tr>
+                  <tr>
+                    <td><code>RainforestBiome</code></td>
+                    <td>&mdash;</td>
+                    <td>Grass</td>
+                    <td>1.2</td>
+                    <td>0.9</td>
+                    <td>Dense trees (legacy)</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </details>
+      </section>
+
+      <!-- ============================================================
+           Biome Infrastructure
+           ============================================================ -->
+      <section id="biome-infrastructure">
+        <h2>Biome Infrastructure</h2>
+        <p>Supporting classes that manage biome data generation, caching, decoration, and layer-based overrides.</p>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">BiomeSource</span>
+            <span class="badge badge-category">World Gen</span>
+          </div>
+          <div class="class-description">
+            <p>Generates biome data for chunk coordinates using the layer system. Acts as the entry point for all biome lookups during world generation &mdash; the <code>LevelSource</code> queries the <code>BiomeSource</code> to determine which biome occupies each column of blocks in a chunk.</p>
+          </div>
+        </div>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">BiomeDecorator</span>
+            <span class="badge badge-category">World Gen</span>
+          </div>
+          <div class="class-description">
+            <p>Places trees, flowers, ores, and structures within a biome. Called during the decoration pass after terrain shape is generated. Each biome can customize decoration counts and feature types through its decorator instance.</p>
+          </div>
+        </div>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">TheEndBiomeDecorator</span>
+            <span class="badge badge-category">World Gen</span>
+            <span class="inheritance-badge">extends <span class="parent-class">BiomeDecorator</span></span>
+          </div>
+          <div class="class-description">
+            <p>Special decorator for The End dimension. Handles placement of obsidian pillars, end crystals, and the exit portal structure unique to the end island.</p>
+          </div>
+        </div>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">BiomeCache</span>
+            <span class="badge badge-category">World Gen</span>
+          </div>
+          <div class="class-description">
+            <p>Caches biome lookups for performance. Stores previously computed biome data so that repeated queries for the same chunk coordinates do not recompute the full layer pipeline. Cache entries are evicted when memory pressure requires it.</p>
+          </div>
+        </div>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">FixedBiomeSource</span>
+            <span class="badge badge-category">World Gen</span>
+            <span class="inheritance-badge">extends <span class="parent-class">BiomeSource</span></span>
+          </div>
+          <div class="class-description">
+            <p>Returns a single fixed biome for all coordinate queries. Used for superflat worlds and test/debug scenarios where uniform biome data is desired.</p>
+          </div>
+        </div>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">BiomeInitLayer</span>
+            <span class="badge badge-category">World Gen</span>
+          </div>
+          <div class="class-description">
+            <p>Initial biome assignment layer in the layer pipeline. Produces the first rough biome map by assigning biome IDs based on noise values and climate zones. Subsequent layers refine this output.</p>
+          </div>
+        </div>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">BiomeOverrideLayer</span>
+            <span class="badge badge-category">World Gen</span>
+          </div>
+          <div class="class-description">
+            <p>Overrides biome assignments from previous layers. Used in tutorial worlds and other special world types to force specific biomes into designated regions regardless of normal generation rules.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           Level Sources
+           ============================================================ -->
+      <section id="level-sources">
+        <h2>Level Sources</h2>
+        <p>Level source classes are responsible for generating the actual terrain data for each chunk. Each world type and dimension has a dedicated level source implementation.</p>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">RandomLevelSource</span>
+            <span class="badge badge-type">Overworld</span>
+          </div>
+          <div class="class-description">
+            <p>Standard overworld terrain generation. Produces natural terrain using multi-octave noise, then populates chunks with caves, ravines, ore veins, dungeons, villages, strongholds, mineshafts, and other structures. The primary level source for survival worlds.</p>
+          </div>
+        </div>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">FlatLevelSource</span>
+            <span class="badge badge-type">Overworld</span>
+          </div>
+          <div class="class-description">
+            <p>Flat/superflat world generation. Produces uniform flat terrain with configurable layer composition. Uses a <code>FixedBiomeSource</code> to assign a single biome across the entire world. No caves, ores, or natural structures are generated by default.</p>
+          </div>
+        </div>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">CustomLevelSource</span>
+            <span class="badge badge-type">Overworld</span>
+          </div>
+          <div class="class-description">
+            <p>Custom world type generation. Extends the standard terrain pipeline with user-configurable parameters for noise scale, ore distribution, structure frequency, sea level, and biome size. Allows fine-grained control over world characteristics.</p>
+          </div>
+        </div>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">HellRandomLevelSource</span>
+            <span class="badge badge-type">Nether</span>
+          </div>
+          <div class="class-description">
+            <p>Nether dimension generation. Produces the characteristic netherrack terrain with a bedrock ceiling at y=127 and floor at y=0, lava lakes at y=31, and large open caverns. Generates nether fortresses and glowstone clusters. Uses <code>HellBiome</code> exclusively.</p>
+          </div>
+        </div>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">HellFlatLevelSource</span>
+            <span class="badge badge-type">Nether</span>
+          </div>
+          <div class="class-description">
+            <p>Flat nether generation. Produces a flat netherrack world for the nether dimension, analogous to <code>FlatLevelSource</code> for the overworld. Used in superflat nether configurations.</p>
+          </div>
+        </div>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">TheEndLevelRandomLevelSource</span>
+            <span class="badge badge-type">The End</span>
+          </div>
+          <div class="class-description">
+            <p>End dimension generation. Produces the central end stone island and surrounding void. Uses simplex noise to shape the island terrain. The ender dragon boss arena and obsidian pillars are placed during the decoration pass via <code>TheEndBiomeDecorator</code>.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           Noise Generators
+           ============================================================ -->
+      <section id="noise">
+        <h2>Noise Generators</h2>
+        <p>Noise generator classes produce the pseudo-random coherent noise values that drive terrain shape, cave carving, ore placement, and biome boundaries.</p>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">PerlinNoise</span>
+            <span class="badge badge-category">Noise</span>
+          </div>
+          <div class="class-description">
+            <p>Classic Perlin noise implementation used for terrain height generation, cave carving, and general-purpose noise sampling. Supports multi-octave fractal noise by layering multiple noise samples at different frequencies and amplitudes. The primary noise source for overworld terrain shape.</p>
+          </div>
+        </div>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">SimplexNoise</span>
+            <span class="badge badge-category">Noise</span>
+          </div>
+          <div class="class-description">
+            <p>Simplex noise variant that provides faster computation for higher-dimensional sampling. Produces smoother gradients than classic Perlin noise with fewer directional artifacts. Used in situations where performance is critical or where the noise output benefits from the simplex lattice structure.</p>
+          </div>
+        </div>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">ImprovedNoise</span>
+            <span class="badge badge-category">Noise</span>
+          </div>
+          <div class="class-description">
+            <p>Improved Perlin noise with better gradient selection. Uses an improved permutation table and gradient computation to eliminate visual artifacts present in the original Perlin noise algorithm. Provides higher-quality noise output at a slight performance cost.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           Layer System
+           ============================================================ -->
+      <section id="layer-system">
+        <h2>Layer System</h2>
+        <p>The layer system is the core mechanism for biome generation. Layers are applied sequentially to transform raw noise data into a fully resolved biome map. Each layer takes input from the previous layer and applies a specific transformation.</p>
+
+        <blockquote>
+          <p><strong>Pipeline:</strong> The layer chain begins with <code>BiomeInitLayer</code>, which assigns initial biome IDs, and passes through a series of transformation layers before producing the final biome data consumed by the terrain generator.</p>
+        </blockquote>
+
+        <p>The layer pipeline handles the following operations:</p>
+        <ul>
+          <li><strong>Initial biome assignment</strong> &mdash; Assigns base biome IDs from noise values and climate parameters.</li>
+          <li><strong>Biome edges</strong> &mdash; Smooths transitions between incompatible biomes (e.g., desert next to ice).</li>
+          <li><strong>River generation</strong> &mdash; Carves river channels through the biome map by replacing biome IDs along computed river paths.</li>
+          <li><strong>Zoom / scale</strong> &mdash; Upscales the biome map resolution, adding detail at each zoom level through interpolation.</li>
+          <li><strong>Island generation</strong> &mdash; Introduces ocean and island patterns at the continental scale before biome assignment.</li>
+        </ul>
+
+        <p>Each layer is a lightweight class that implements a <code>getArea()</code> method, returning an array of biome IDs for a given rectangular region. Layers are composed into a chain at world creation time, and the final layer in the chain is queried by <code>BiomeSource</code> during chunk generation.</p>
+      </section>
+
+      <!-- ============================================================
+           Features
+           ============================================================ -->
+      <section id="features">
+        <h2>Features</h2>
+        <p>The <code>Feature</code> base class represents structures and decorations that are placed into the world after terrain shape generation. Features range from individual trees and ore veins to large multi-chunk structures like villages and strongholds.</p>
+
+        <ul>
+          <li><strong>Trees</strong> &mdash; Various tree types placed per biome (oak, birch, spruce, jungle, acacia). Each biome's <code>getTreeFeature()</code> method selects the appropriate type.</li>
+          <li><strong>Caves</strong> &mdash; Connected cave systems carved through terrain using worm-like noise tunnels. Cave generation runs across chunk boundaries to produce seamless networks.</li>
+          <li><strong>Dungeons</strong> &mdash; Small rooms containing a mob spawner and loot chests. Placed at random positions underground where open space exists.</li>
+          <li><strong>Villages</strong> &mdash; Multi-building settlements generated on relatively flat terrain in plains, desert, and savanna biomes. Composed of houses, farms, wells, churches, and paths.</li>
+          <li><strong>Strongholds</strong> &mdash; End portal structures generated deep underground. A fixed number of strongholds are placed per world at calculated positions radiating from the origin.</li>
+          <li><strong>Mineshafts</strong> &mdash; Underground mining tunnel networks with wooden supports, rails, cave spider spawners, and loot chests. Generated as branching corridors at mid-depth.</li>
+          <li><strong>Ores</strong> &mdash; Ore vein placement for coal, iron, gold, diamond, redstone, lapis lazuli, and emerald. Each ore type has configurable vein size, count per chunk, and height range.</li>
+        </ul>
+      </section>
+
+      <!-- ============================================================
+           Dimensions
+           ============================================================ -->
+      <section id="dimensions">
+        <h2>Dimensions</h2>
+        <p>The engine supports three distinct dimensions, each with its own level source, biome configuration, lighting model, and gameplay rules.</p>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">Overworld</span>
+            <span class="badge badge-platform">ID 0</span>
+          </div>
+          <div class="class-description">
+            <p>The standard survival world. Features the full variety of biomes, day/night cycle with sun and moon, weather (rain and snow), and the complete set of structures (villages, strongholds, mineshafts, dungeons). Terrain height ranges from y=0 (bedrock) to y=256. Sea level is at y=63. Uses <code>RandomLevelSource</code> for terrain generation and <code>BiomeSource</code> with the full layer pipeline for biome assignment.</p>
+          </div>
+        </div>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">The Nether</span>
+            <span class="badge badge-platform">ID -1</span>
+          </div>
+          <div class="class-description">
+            <p>The hell dimension. Characterized by netherrack terrain, lava oceans at y=31, a bedrock ceiling at y=127, and no sky or natural light. The compressed vertical space (128 blocks vs. 256) creates a claustrophobic environment. Features include nether fortresses, glowstone clusters, nether wart, and blaze/ghast/zombie pigman spawning. Uses <code>HellRandomLevelSource</code> and the single <code>HellBiome</code>.</p>
+          </div>
+        </div>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">The End</span>
+            <span class="badge badge-platform">ID 1</span>
+          </div>
+          <div class="class-description">
+            <p>The end dimension. Consists of a central end stone island floating in void, surrounded by darkness. Home to the ender dragon boss fight with obsidian pillars and end crystals. No weather, no day/night cycle, and a single <code>TheEndBiome</code>. Uses <code>TheEndLevelRandomLevelSource</code> for terrain and <code>TheEndBiomeDecorator</code> for structure placement. Endermen are the only naturally spawning mob.</p>
+          </div>
+        </div>
+      </section>
+
+      <hr>
+
+      <p class="text-subtext0">For how generated chunks are saved and loaded, see <a href="storage.html">Storage</a>. For the entities that spawn during world generation, see <a href="entities.html">Entities</a>.</p>
+
+      <footer class="site-footer">
+        <p>LCE Documentation &mdash; Generated for the LCEMP project by notpies</p>
+      </footer>
+    </main>
+  </div>
+  <div class="search-overlay" id="search-overlay">
+    <div class="search-modal">
+      <input type="text" class="search-input-large" id="search-input" placeholder="Search documentation..." autocomplete="off">
+      <div class="search-results" id="search-results"></div>
+    </div>
+  </div>
+  <script src="js/nav.js"></script>
+  <script src="js/search.js"></script>
+</body>
+</html>

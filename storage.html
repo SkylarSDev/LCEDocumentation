@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Storage System - LCE Documentation</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <button class="hamburger" aria-label="Toggle navigation">
+    <span></span><span></span><span></span>
+  </button>
+  <div class="site-wrapper">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <h1 class="sidebar-title">LCE Docs</h1>
+        <p class="sidebar-subtitle">Legacy Console Edition</p>
+      </div>
+      <div class="sidebar-search">
+        <input type="text" placeholder="Search docs (Ctrl+K)" id="sidebar-search-input" autocomplete="off">
+      </div>
+      <nav class="sidebar-nav">
+        <div class="nav-section">
+          <div class="nav-section-title">Overview</div>
+          <a href="index.html" class="nav-link">Home</a>
+          <a href="getting-started.html" class="nav-link">Getting Started</a>
+          <a href="architecture.html" class="nav-link">Architecture</a>
+        </div>
+        <div class="nav-section">
+          <div class="nav-section-title">Systems</div>
+          <a href="rendering.html" class="nav-link">Rendering</a>
+          <a href="networking.html" class="nav-link">Networking</a>
+          <a href="world-gen.html" class="nav-link">World Generation</a>
+          <a href="entities.html" class="nav-link">Entities</a>
+          <a href="tiles-items.html" class="nav-link">Tiles &amp; Items</a>
+          <a href="ui-system.html" class="nav-link">UI System</a>
+          <a href="audio.html" class="nav-link">Audio</a>
+          <a href="storage.html" class="nav-link active">Storage</a>
+          <a href="gameplay.html" class="nav-link">Gameplay</a>
+          <a href="platforms.html" class="nav-link">Platforms</a>
+        </div>
+      </nav>
+    </aside>
+    <main class="main-content">
+
+      <div class="breadcrumbs"><a href="index.html">Home</a> <span class="separator">/</span> Storage System</div>
+
+      <h1>Storage System</h1>
+      <p>Region-based save format (McRegion). <code>LevelStorage</code> interface with multiple implementations. Compressed tile/data/light storage for memory efficiency on consoles. Console save file system with split file support. NBT serialization via <code>CompoundTag</code>.</p>
+
+      <!-- ============================================================
+           LevelStorage Interface
+           ============================================================ -->
+      <section id="levelstorage">
+        <h2>LevelStorage Interface</h2>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">LevelStorage</span>
+            <span class="badge badge-type">Interface</span>
+          </div>
+          <div class="class-meta">Minecraft.World/LevelStorage.h</div>
+          <div class="class-description">
+            <p>Abstract interface for save/load operations. Defines the contract for all storage backends, from file-system-based region storage to in-memory testing implementations.</p>
+
+            <h4>Virtual Methods</h4>
+            <dl class="method-list">
+              <dt>prepareLevel() &rarr; LevelData*</dt>
+              <dd>Prepares and returns the level data for the world being loaded.</dd>
+              <dt>checkSession()</dt>
+              <dd>Validates the current save session is still active and owned by this instance.</dd>
+              <dt>createChunkStorage(Dimension*) &rarr; ChunkStorage*</dt>
+              <dd>Creates a chunk storage backend for the given dimension.</dd>
+              <dt>saveLevelData(LevelData*)</dt>
+              <dd>Persists the level data to storage.</dd>
+              <dt>saveLevelData(LevelData*, vector&lt;Player*&gt;*)</dt>
+              <dd>Persists the level data along with player data to storage.</dd>
+              <dt>getPlayerIO() &rarr; PlayerIO*</dt>
+              <dd>Returns the player I/O handler for reading/writing player data.</dd>
+              <dt>closeAll()</dt>
+              <dd>Closes all open file handles and flushes pending writes.</dd>
+              <dt>getDataFile(wstring&amp; id) &rarr; ConsoleSavePath</dt>
+              <dd>Returns the save path for a named data file.</dd>
+              <dt>getLevelId() &rarr; wstring</dt>
+              <dd>Returns the unique identifier for this level/world.</dd>
+              <dt>getSaveFile() &rarr; ConsoleSaveFile*</dt>
+              <dd>Returns the console save file wrapper. Optional &mdash; returns NULL if not applicable.</dd>
+              <dt>getAuxValueForMap(PlayerUID, int dimension, int centreXC, int centreZC, int scale) &rarr; int</dt>
+              <dd>Returns an auxiliary value for map item data. 4J Studios addition for console map support.</dd>
+            </dl>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           Storage Implementations
+           ============================================================ -->
+      <section id="storage-implementations">
+        <h2>Storage Implementations</h2>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">DirectoryLevelStorage</span>
+            <span class="badge badge-category">Storage</span>
+          </div>
+          <div class="class-description">
+            <p>File system directory-based storage. Stores world data in a directory tree on disk, with separate files for level data, player data, and region files.</p>
+          </div>
+        </div>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">McRegionLevelStorage</span>
+            <span class="badge badge-category">Storage</span>
+          </div>
+          <div class="class-description">
+            <p>McRegion format storage. Uses the standard Minecraft region file format where chunks are grouped into 32x32 region files for efficient disk I/O and reduced file handle usage.</p>
+          </div>
+        </div>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">MemoryLevelStorage</span>
+            <span class="badge badge-category">Storage</span>
+          </div>
+          <div class="class-description">
+            <p>In-memory storage for testing and temporary worlds. All data is held in memory with no disk persistence, useful for unit tests and throwaway world instances.</p>
+          </div>
+        </div>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">MockedLevelStorage</span>
+            <span class="badge badge-category">Storage</span>
+          </div>
+          <div class="class-description">
+            <p>Mock implementation for testing. Provides controllable storage behavior for automated test scenarios without requiring real file system access.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           Chunk Storage
+           ============================================================ -->
+      <section id="chunk-storage">
+        <h2>Chunk Storage</h2>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">ChunkStorage</span>
+            <span class="badge badge-type">Interface</span>
+          </div>
+          <div class="class-description">
+            <p>Base interface for chunk persistence. Defines the contract for loading and saving individual chunks within a dimension.</p>
+          </div>
+        </div>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">McRegionChunkStorage</span>
+            <span class="badge badge-category">Storage</span>
+          </div>
+          <div class="class-description">
+            <p>Region file-based chunk storage. Reads and writes chunk data within McRegion format files, handling compression, sector allocation, and chunk coordinate mapping within each region file.</p>
+          </div>
+        </div>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">MemoryChunkStorage</span>
+            <span class="badge badge-category">Storage</span>
+          </div>
+          <div class="class-description">
+            <p>In-memory chunk storage. Stores chunk data in memory maps for testing and temporary world scenarios without disk I/O.</p>
+          </div>
+        </div>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">OldChunkStorage</span>
+            <span class="badge badge-category">Storage</span>
+          </div>
+          <div class="class-description">
+            <p>Legacy chunk format support. Handles reading chunks stored in the older per-chunk file format used before the region system was introduced.</p>
+          </div>
+        </div>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">ZonedChunkStorage</span>
+            <span class="badge badge-category">Storage</span>
+          </div>
+          <div class="class-description">
+            <p>Zone-based chunk organization. Groups chunks into zones for optimized loading and saving patterns, particularly useful for console memory management.</p>
+          </div>
+        </div>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">ChunkStorageProfileDecorator</span>
+            <span class="badge badge-category">Storage</span>
+          </div>
+          <div class="class-description">
+            <p>Performance profiling wrapper. Decorates any <code>ChunkStorage</code> implementation with timing instrumentation for measuring load/save performance characteristics.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           LevelChunk
+           ============================================================ -->
+      <section id="levelchunk">
+        <h2>LevelChunk</h2>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">LevelChunk</span>
+            <span class="badge badge-category">Storage</span>
+          </div>
+          <div class="class-meta">Minecraft.World/LevelChunk.h</div>
+          <div class="class-meta">Friends: TileCompressData_SPU, LevelRenderer</div>
+          <div class="class-description">
+            <p>Core chunk data structure. Represents a 16x16x256 column of blocks with compressed storage. Splits block data into lower (0&ndash;127) and upper (128&ndash;255) halves for memory efficiency, using sparse storage for metadata and light values.</p>
+
+            <h4>Members</h4>
+            <dl class="member-list">
+              <dt>level <span class="text-overlay0">(Level*)</span></dt>
+              <dd>Pointer to the owning level instance.</dd>
+              <dt>x, z <span class="text-overlay0">(int)</span></dt>
+              <dd>Chunk coordinates in chunk space.</dd>
+              <dt>lowerBlocks <span class="text-overlay0">(CompressedTileStorage*)</span></dt>
+              <dd>Compressed tile storage for blocks at y=0 through y=127.</dd>
+              <dt>upperBlocks <span class="text-overlay0">(CompressedTileStorage*)</span></dt>
+              <dd>Compressed tile storage for blocks at y=128 through y=255.</dd>
+              <dt>lowerData <span class="text-overlay0">(SparseDataStorage*)</span></dt>
+              <dd>Sparse metadata storage for the lower block half.</dd>
+              <dt>upperData <span class="text-overlay0">(SparseDataStorage*)</span></dt>
+              <dd>Sparse metadata storage for the upper block half.</dd>
+              <dt>lowerSkyLight <span class="text-overlay0">(SparseLightStorage*)</span></dt>
+              <dd>Sparse sky light storage for the lower half.</dd>
+              <dt>upperSkyLight <span class="text-overlay0">(SparseLightStorage*)</span></dt>
+              <dd>Sparse sky light storage for the upper half.</dd>
+              <dt>lowerBlockLight <span class="text-overlay0">(SparseLightStorage*)</span></dt>
+              <dd>Sparse block light storage for the lower half.</dd>
+              <dt>upperBlockLight <span class="text-overlay0">(SparseLightStorage*)</span></dt>
+              <dd>Sparse block light storage for the upper half.</dd>
+              <dt>biomes <span class="text-overlay0">(byteArray, 16x16)</span></dt>
+              <dd>Per-column biome IDs for the chunk.</dd>
+              <dt>heightmap <span class="text-overlay0">(byteArray)</span></dt>
+              <dd>Per-column highest non-air block heights for sky light propagation.</dd>
+              <dt>tileEntities <span class="text-overlay0">(unordered_map&lt;TilePos, shared_ptr&lt;TileEntity&gt;&gt;)</span></dt>
+              <dd>Map of tile entity positions to their instances (chests, furnaces, signs, etc.).</dd>
+              <dt>entityBlocks <span class="text-overlay0">(vector&lt;shared_ptr&lt;Entity&gt;&gt;**)</span></dt>
+              <dd>Spatially partitioned entity storage for efficient lookup by position.</dd>
+              <dt>terrainPopulated <span class="text-overlay0">(short)</span></dt>
+              <dd>Flag indicating whether terrain decoration (ores, trees, structures) has been applied.</dd>
+              <dt>loaded <span class="text-overlay0">(bool)</span></dt>
+              <dd>Whether the chunk data has been loaded from storage.</dd>
+              <dt>m_unsaved <span class="text-overlay0">(bool)</span></dt>
+              <dd>Whether the chunk has unsaved modifications.</dd>
+              <dt>dontSave <span class="text-overlay0">(bool)</span></dt>
+              <dd>Flag to prevent saving this chunk (used for temporary/generated chunks).</dd>
+            </dl>
+
+            <h4>Methods</h4>
+            <dl class="method-list">
+              <dt>getTile(int x, int y, int z) &rarr; int</dt>
+              <dd>Returns the tile ID at the given local block coordinates.</dd>
+              <dt>setTileAndData(int x, int y, int z, int tile, int data) &rarr; bool</dt>
+              <dd>Sets the tile ID and metadata at the given coordinates. Returns true if the block changed.</dd>
+              <dt>getData(int x, int y, int z) &rarr; int</dt>
+              <dd>Returns the metadata value at the given local block coordinates.</dd>
+              <dt>getBrightness(LightLayer::variety, int x, int y, int z) &rarr; int</dt>
+              <dd>Returns the light level for the specified light layer (sky or block) at the given coordinates.</dd>
+              <dt>setBrightness(LightLayer::variety, int x, int y, int z, int)</dt>
+              <dd>Sets the light level for the specified light layer at the given coordinates.</dd>
+              <dt>addEntity(shared_ptr&lt;Entity&gt;)</dt>
+              <dd>Adds an entity to this chunk's spatial partitioning structure.</dd>
+              <dt>removeEntity()</dt>
+              <dd>Removes an entity from this chunk's spatial partitioning structure.</dd>
+              <dt>getTileEntity(int x, int y, int z) &rarr; shared_ptr&lt;TileEntity&gt;</dt>
+              <dd>Returns the tile entity at the given coordinates, or null if none exists.</dd>
+              <dt>load()</dt>
+              <dd>Loads the chunk data from its storage backend.</dd>
+              <dt>unload(bool)</dt>
+              <dd>Unloads the chunk, optionally saving it first.</dd>
+              <dt>recalcHeightmap()</dt>
+              <dd>Recalculates the heightmap for all columns in the chunk.</dd>
+              <dt>recalcBlockLights()</dt>
+              <dd>Recalculates block light values for all blocks in the chunk.</dd>
+              <dt>attemptCompression()</dt>
+              <dd>Attempts to compress the chunk's tile and light storage to reduce memory usage.</dd>
+            </dl>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           Compressed Storage
+           ============================================================ -->
+      <section id="compressed-storage">
+        <h2>Compressed Storage</h2>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">CompressedTileStorage</span>
+            <span class="badge badge-category">Storage</span>
+          </div>
+          <div class="class-description">
+            <p>Compresses tile ID data for memory efficiency. Critical for console hardware where RAM is severely constrained. Uses run-length or palette-based encoding to reduce the memory footprint of block storage within chunks.</p>
+          </div>
+        </div>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">SparseDataStorage</span>
+            <span class="badge badge-category">Storage</span>
+          </div>
+          <div class="class-description">
+            <p>Sparse storage for tile metadata. Only stores non-zero values, significantly reducing memory usage for chunks where most blocks have default metadata (e.g., stone, dirt, air).</p>
+          </div>
+        </div>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">SparseLightStorage</span>
+            <span class="badge badge-category">Storage</span>
+          </div>
+          <div class="class-description">
+            <p>Sparse storage for sky and block light values. Only stores non-default light values, reducing memory overhead for chunks with large uniform light regions (e.g., fully lit sky columns or dark underground areas).</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           Level Data
+           ============================================================ -->
+      <section id="level-data">
+        <h2>Level Data</h2>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">LevelData</span>
+            <span class="badge badge-category">Storage</span>
+          </div>
+          <div class="class-description">
+            <p>World metadata: seed, spawn position, time, weather, game mode, game rules. Persisted alongside chunk data and loaded when a world is opened.</p>
+          </div>
+        </div>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">LevelSettings</span>
+            <span class="badge badge-category">Storage</span>
+          </div>
+          <div class="class-description">
+            <p>World creation settings: seed, game mode, difficulty, features. Used when creating a new world to configure the initial generation parameters.</p>
+          </div>
+        </div>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">LevelSummary</span>
+            <span class="badge badge-category">Storage</span>
+          </div>
+          <div class="class-description">
+            <p>Brief world info for the save selection screen. Contains the world name, last played timestamp, game mode, and file size without loading the full level data.</p>
+          </div>
+        </div>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">LevelType</span>
+            <span class="badge badge-category">Storage</span>
+          </div>
+          <div class="class-description">
+            <p>World type enumeration: default, flat, amplified. Determines which level source and generation pipeline is used for terrain creation.</p>
+          </div>
+        </div>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">DerivedLevelData</span>
+            <span class="badge badge-category">Storage</span>
+          </div>
+          <div class="class-description">
+            <p>Derived and computed level data. Provides a view over base level data with additional computed properties, used in contexts where the full mutable level data is not needed.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           Console Save System
+           ============================================================ -->
+      <section id="console-save">
+        <h2>Console Save System</h2>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">ConsoleSaveFile</span>
+            <span class="badge badge-category">Console</span>
+          </div>
+          <div class="class-description">
+            <p>Console-specific save file wrapper. Encapsulates the platform-specific save file format used on console hardware, handling container formats and metadata.</p>
+          </div>
+        </div>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">ConsoleSaveFileConverter</span>
+            <span class="badge badge-category">Console</span>
+          </div>
+          <div class="class-description">
+            <p>Converts between save formats. Handles migration of save data between different console save format versions and cross-platform save conversion.</p>
+          </div>
+        </div>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">ConsoleSaveFileIO</span>
+            <span class="badge badge-category">Console</span>
+          </div>
+          <div class="class-description">
+            <p>I/O operations for console saves. Manages the low-level read and write operations for console save files, including buffering and error handling.</p>
+          </div>
+        </div>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">ConsoleSaveFileInputStream</span>
+            <span class="badge badge-category">Console</span>
+          </div>
+          <div class="class-description">
+            <p>Read stream for save data. Provides a sequential input stream interface for reading data from a console save file.</p>
+          </div>
+        </div>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">ConsoleSaveFileOutputStream</span>
+            <span class="badge badge-category">Console</span>
+          </div>
+          <div class="class-description">
+            <p>Write stream for save data. Provides a sequential output stream interface for writing data to a console save file.</p>
+          </div>
+        </div>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">ConsoleSaveFileOriginal</span>
+            <span class="badge badge-category">Console</span>
+          </div>
+          <div class="class-description">
+            <p>Original unmodified save format. Represents the initial save format before any format migrations or conversions have been applied.</p>
+          </div>
+        </div>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">ConsoleSaveFileSplit</span>
+            <span class="badge badge-category">Console</span>
+          </div>
+          <div class="class-description">
+            <p>Split save file support for large worlds. When a world exceeds the single-file size limit on console platforms, the save is split across multiple files for storage.</p>
+          </div>
+        </div>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">ConsoleSavePath</span>
+            <span class="badge badge-category">Console</span>
+          </div>
+          <div class="class-description">
+            <p>Save file path management. Resolves and manages file paths for console save data, handling platform-specific path conventions and storage locations.</p>
+          </div>
+        </div>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">SavedData</span>
+            <span class="badge badge-category">Storage</span>
+          </div>
+          <div class="class-description">
+            <p>Generic saved data container. Base class for any auxiliary data that needs to be persisted alongside the world (e.g., map data, scoreboard data, village data).</p>
+          </div>
+        </div>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">SavedDataStorage</span>
+            <span class="badge badge-category">Storage</span>
+          </div>
+          <div class="class-description">
+            <p>Storage manager for <code>SavedData</code> instances. Tracks, loads, and saves all registered <code>SavedData</code> objects, keyed by their string identifiers.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           Region System
+           ============================================================ -->
+      <section id="region-system">
+        <h2>Region System</h2>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">Region</span>
+            <span class="badge badge-category">Storage</span>
+          </div>
+          <div class="class-description">
+            <p>Represents a region of chunks. A region covers a 32x32 area of chunks and serves as the logical grouping unit for the McRegion file format.</p>
+          </div>
+        </div>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">RegionFile</span>
+            <span class="badge badge-category">Storage</span>
+          </div>
+          <div class="class-description">
+            <p>Single region file containing chunk data. Manages the on-disk file that stores up to 1024 chunks (32x32) with sector-based allocation, offset tables, and per-chunk compression.</p>
+          </div>
+        </div>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">RegionFileCache</span>
+            <span class="badge badge-category">Storage</span>
+          </div>
+          <div class="class-description">
+            <p>Cache for open region files. Maintains a pool of recently accessed <code>RegionFile</code> instances to avoid repeated file open/close overhead when accessing nearby chunks.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           Level Storage Sources
+           ============================================================ -->
+      <section id="level-storage-sources">
+        <h2>Level Storage Sources</h2>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">LevelStorageSource</span>
+            <span class="badge badge-type">Interface</span>
+          </div>
+          <div class="class-description">
+            <p>Factory interface for creating <code>LevelStorage</code> instances. Abstracts the creation of storage backends so that the engine can work with different storage formats without hard-coded dependencies.</p>
+          </div>
+        </div>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">DirectoryLevelStorageSource</span>
+            <span class="badge badge-category">Storage</span>
+          </div>
+          <div class="class-description">
+            <p>Creates directory-based storage. Factory that produces <code>DirectoryLevelStorage</code> instances pointing at a given save directory on the file system.</p>
+          </div>
+        </div>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">McRegionLevelStorageSource</span>
+            <span class="badge badge-category">Storage</span>
+          </div>
+          <div class="class-description">
+            <p>Creates McRegion-based storage. Factory that produces <code>McRegionLevelStorage</code> instances using the region file format for chunk persistence.</p>
+          </div>
+        </div>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">MemoryLevelStorageSource</span>
+            <span class="badge badge-category">Storage</span>
+          </div>
+          <div class="class-description">
+            <p>Creates memory-based storage. Factory that produces <code>MemoryLevelStorage</code> instances for testing and temporary world scenarios.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           Map Data
+           ============================================================ -->
+      <section id="map-data">
+        <h2>Map Data</h2>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">MapItemSavedData</span>
+            <span class="badge badge-category">Storage</span>
+          </div>
+          <div class="class-description">
+            <p>Per-player map item data. Stores the explored areas, pixel colors, and markers for each in-game map item. Persisted as <code>SavedData</code> and keyed by the map's unique numeric ID. Tracks which portions of the world each player has revealed on their map copies.</p>
+          </div>
+        </div>
+      </section>
+
+      <hr>
+
+      <p class="text-subtext0">For how chunks are generated before being stored, see <a href="world-gen.html">World Generation</a>. For tile entities and items that are serialized within chunks, see <a href="tiles-items.html">Tiles &amp; Items</a>. For platform-specific storage details, see <a href="platforms.html">Platforms</a>.</p>
+
+      <footer class="site-footer">
+        <p>LCE Documentation &mdash; Generated for the LCEMP project by notpies</p>
+      </footer>
+    </main>
+  </div>
+  <div class="search-overlay" id="search-overlay">
+    <div class="search-modal">
+      <input type="text" class="search-input-large" id="search-input" placeholder="Search documentation..." autocomplete="off">
+      <div class="search-results" id="search-results"></div>
+    </div>
+  </div>
+  <script src="js/nav.js"></script>
+  <script src="js/search.js"></script>
+</body>
+</html>

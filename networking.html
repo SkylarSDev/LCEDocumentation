@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Networking System - LCE Documentation</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <button class="hamburger" aria-label="Toggle navigation">
+    <span></span><span></span><span></span>
+  </button>
+  <div class="site-wrapper">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <h1 class="sidebar-title">LCE Docs</h1>
+        <p class="sidebar-subtitle">Legacy Console Edition</p>
+      </div>
+      <div class="sidebar-search">
+        <input type="text" placeholder="Search docs (Ctrl+K)" id="sidebar-search-input" autocomplete="off">
+      </div>
+      <nav class="sidebar-nav">
+        <div class="nav-section">
+          <div class="nav-section-title">Overview</div>
+          <a href="index.html" class="nav-link">Home</a>
+          <a href="getting-started.html" class="nav-link">Getting Started</a>
+          <a href="architecture.html" class="nav-link">Architecture</a>
+        </div>
+        <div class="nav-section">
+          <div class="nav-section-title">Systems</div>
+          <a href="rendering.html" class="nav-link">Rendering</a>
+          <a href="networking.html" class="nav-link active">Networking</a>
+          <a href="world-gen.html" class="nav-link">World Generation</a>
+          <a href="entities.html" class="nav-link">Entities</a>
+          <a href="tiles-items.html" class="nav-link">Tiles &amp; Items</a>
+          <a href="ui-system.html" class="nav-link">UI System</a>
+          <a href="audio.html" class="nav-link">Audio</a>
+          <a href="storage.html" class="nav-link">Storage</a>
+          <a href="gameplay.html" class="nav-link">Gameplay</a>
+          <a href="platforms.html" class="nav-link">Platforms</a>
+        </div>
+      </nav>
+    </aside>
+    <main class="main-content">
+
+      <div class="breadcrumbs"><a href="index.html">Home</a> <span class="separator">/</span> Networking System</div>
+
+      <h1>Networking System</h1>
+      <p>The networking system uses a packet-based client-server model. The <code>Packet</code> base class employs a factory pattern with <code>idToCreateMap</code> for packet creation. The <code>PacketListener</code> interface handles received packets, while <code>Connection</code> manages network streams. All packets implement <code>read()</code>/<code>write()</code>/<code>handle()</code> virtual methods. Statistics profiling is available per packet type.</p>
+
+      <!-- ============================================================
+           Packet Base Class
+           ============================================================ -->
+      <section id="packet-base">
+        <h2>Packet Base Class</h2>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">Packet</span>
+            <span class="badge badge-type">Abstract Base</span>
+          </div>
+          <div class="class-meta">Minecraft.World/Packet.h</div>
+          <div class="class-description">
+            <p>Abstract base class for all network packets. Uses a factory pattern with a static ID-to-constructor map for creating packet instances by their numeric identifier. Tracks per-packet statistics and supports packet invalidation for deduplication.</p>
+          </div>
+
+          <h4>Static Members</h4>
+          <dl class="member-list">
+            <dt>unordered_map&lt;int, packetCreateFn&gt; idToCreateMap</dt>
+            <dd>Maps packet IDs to their factory creation functions.</dd>
+            <dt>unordered_set&lt;int&gt; clientReceivedPackets</dt>
+            <dd>Set of packet IDs that should be received by the client.</dd>
+            <dt>unordered_set&lt;int&gt; serverReceivedPackets</dt>
+            <dd>Set of packet IDs that should be received by the server.</dd>
+            <dt>unordered_map&lt;int, PacketStatistics*&gt; statistics</dt>
+            <dd>Per-packet-type profiling statistics.</dd>
+          </dl>
+
+          <h4>Instance Members</h4>
+          <dl class="member-list">
+            <dt>const __int64 createTime</dt>
+            <dd>Timestamp when the packet was created.</dd>
+            <dt>bool shouldDelay</dt>
+            <dd>Whether the packet should be delayed before processing.</dd>
+          </dl>
+
+          <h4>Virtual Methods</h4>
+          <dl class="method-list">
+            <dt>getId() -&gt; int</dt>
+            <dd>Returns the numeric packet identifier.</dd>
+            <dt>read(DataInputStream*) = 0</dt>
+            <dd>Deserializes the packet from the input stream. Pure virtual.</dd>
+            <dt>write(DataOutputStream*) = 0</dt>
+            <dd>Serializes the packet to the output stream. Pure virtual.</dd>
+            <dt>handle(PacketListener*) = 0</dt>
+            <dd>Dispatches the packet to the appropriate handler. Pure virtual.</dd>
+            <dt>getEstimatedSize() -&gt; int</dt>
+            <dd>Returns the estimated byte size of the serialized packet.</dd>
+            <dt>canBeInvalidated() -&gt; bool</dt>
+            <dd>Whether this packet type supports invalidation for deduplication.</dd>
+            <dt>isInvalidatedBy(shared_ptr&lt;Packet&gt;) -&gt; bool</dt>
+            <dd>Checks if this packet is invalidated by another packet of the same type.</dd>
+          </dl>
+
+          <h4>Static Methods</h4>
+          <dl class="method-list">
+            <dt>getPacket(int id) -&gt; shared_ptr&lt;Packet&gt;</dt>
+            <dd>Creates a new packet instance by ID using the factory map.</dd>
+            <dt>readPacket(DataInputStream*, bool isServer)</dt>
+            <dd>Reads a packet from the input stream, creating the appropriate type.</dd>
+            <dt>writePacket(shared_ptr&lt;Packet&gt;, DataOutputStream*)</dt>
+            <dd>Writes a packet to the output stream with its ID prefix.</dd>
+            <dt>map(int id, bool receiveOnClient, ...)</dt>
+            <dd>Registers a packet type in the factory map with its ID and receive flags.</dd>
+          </dl>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           PacketListener
+           ============================================================ -->
+      <section id="packet-listener">
+        <h2>PacketListener</h2>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">PacketListener</span>
+            <span class="badge badge-type">Interface</span>
+          </div>
+          <div class="class-description">
+            <p>Interface for handling received packets. Both client and server implement this interface to process incoming packets through their respective handler methods. Each packet type's <code>handle()</code> method calls the corresponding method on the <code>PacketListener</code> implementation.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           Connection
+           ============================================================ -->
+      <section id="connection">
+        <h2>Connection</h2>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">Connection</span>
+            <span class="badge badge-type">Base Class</span>
+          </div>
+          <div class="class-description">
+            <p>Manages network stream I/O. Base class for client and server connections. Handles reading packets from the input stream, writing packets to the output stream, and managing the lifecycle of the network connection including keepalive and disconnect handling.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           Entity Packets
+           ============================================================ -->
+      <section id="entity-packets">
+        <h2>Entity Packets</h2>
+        <p>Packets for spawning, moving, updating, and removing entities in the world. These handle all entity state synchronization between the server and connected clients.</p>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Packet</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>AddEntityPacket</code></td>
+                <td>Spawns a non-mob entity (projectiles, items, etc.)</td>
+              </tr>
+              <tr>
+                <td><code>AddExperienceOrbPacket</code></td>
+                <td>Spawns experience orb entity</td>
+              </tr>
+              <tr>
+                <td><code>AddGlobalEntityPacket</code></td>
+                <td>Spawns global entity (lightning bolt)</td>
+              </tr>
+              <tr>
+                <td><code>AddMobPacket</code></td>
+                <td>Spawns a mob entity with type and position</td>
+              </tr>
+              <tr>
+                <td><code>AddPaintingPacket</code></td>
+                <td>Spawns painting entity</td>
+              </tr>
+              <tr>
+                <td><code>AddPlayerPacket</code></td>
+                <td>Spawns a player entity</td>
+              </tr>
+              <tr>
+                <td><code>MoveEntityPacket</code></td>
+                <td>Updates entity position/rotation (full precision)</td>
+              </tr>
+              <tr>
+                <td><code>MoveEntityPacketSmall</code></td>
+                <td>Updates entity position (small delta)</td>
+              </tr>
+              <tr>
+                <td><code>MovePlayerPacket</code></td>
+                <td>Updates player position/rotation</td>
+              </tr>
+              <tr>
+                <td><code>RemoveEntitiesPacket</code></td>
+                <td>Removes entities by ID</td>
+              </tr>
+              <tr>
+                <td><code>RotateHeadPacket</code></td>
+                <td>Updates entity head rotation</td>
+              </tr>
+              <tr>
+                <td><code>SetEntityDataPacket</code></td>
+                <td>Syncs SynchedEntityData values</td>
+              </tr>
+              <tr>
+                <td><code>SetEntityMotionPacket</code></td>
+                <td>Sets entity velocity</td>
+              </tr>
+              <tr>
+                <td><code>TakeItemEntityPacket</code></td>
+                <td>Animate item pickup by entity</td>
+              </tr>
+              <tr>
+                <td><code>TeleportEntityPacket</code></td>
+                <td>Teleport entity to position</td>
+              </tr>
+              <tr>
+                <td><code>SetRidingPacket</code></td>
+                <td>Set entity riding another entity</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           Mob Effect Packets
+           ============================================================ -->
+      <section id="mob-effect-packets">
+        <h2>Mob Effect Packets</h2>
+        <p>Packets for synchronizing status effects and player abilities between server and client.</p>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Packet</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>RemoveMobEffectPacket</code></td>
+                <td>Remove status effect from entity</td>
+              </tr>
+              <tr>
+                <td><code>UpdateMobEffectPacket</code></td>
+                <td>Add/update status effect on entity</td>
+              </tr>
+              <tr>
+                <td><code>PlayerAbilitiesPacket</code></td>
+                <td>Sync player abilities (flying, creative, etc.)</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           Container/Inventory Packets
+           ============================================================ -->
+      <section id="container-packets">
+        <h2>Container/Inventory Packets</h2>
+        <p>Packets for managing container windows, inventory interactions, item slots, and creative mode item management.</p>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Packet</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>ContainerAckPacket</code></td>
+                <td>Acknowledge container transaction</td>
+              </tr>
+              <tr>
+                <td><code>ContainerButtonClickPacket</code></td>
+                <td>Button click in container UI</td>
+              </tr>
+              <tr>
+                <td><code>ContainerClickPacket</code></td>
+                <td>Item click/move in container</td>
+              </tr>
+              <tr>
+                <td><code>ContainerClosePacket</code></td>
+                <td>Close container window</td>
+              </tr>
+              <tr>
+                <td><code>ContainerOpenPacket</code></td>
+                <td>Open container window</td>
+              </tr>
+              <tr>
+                <td><code>ContainerSetContentPacket</code></td>
+                <td>Set full container contents</td>
+              </tr>
+              <tr>
+                <td><code>ContainerSetDataPacket</code></td>
+                <td>Set container data value (furnace progress, etc.)</td>
+              </tr>
+              <tr>
+                <td><code>ContainerSetSlotPacket</code></td>
+                <td>Set single slot in container</td>
+              </tr>
+              <tr>
+                <td><code>SetCarriedItemPacket</code></td>
+                <td>Change held item slot</td>
+              </tr>
+              <tr>
+                <td><code>SetCreativeModeSlotPacket</code></td>
+                <td>Creative mode item placement</td>
+              </tr>
+              <tr>
+                <td><code>SetEquippedItemPacket</code></td>
+                <td>Set equipped item on entity</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           Player Action Packets
+           ============================================================ -->
+      <section id="player-packets">
+        <h2>Player Action Packets</h2>
+        <p>Packets for player actions, commands, input, animations, and entity interactions.</p>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Packet</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>PlayerActionPacket</code></td>
+                <td>Player block interaction (break start/stop, drop item, etc.)</td>
+              </tr>
+              <tr>
+                <td><code>PlayerCommandPacket</code></td>
+                <td>Player state commands (sneak, sprint, open inventory)</td>
+              </tr>
+              <tr>
+                <td><code>PlayerInputPacket</code></td>
+                <td>Player movement input (steer vehicle, jump)</td>
+              </tr>
+              <tr>
+                <td><code>PlayerInfoPacket</code></td>
+                <td>Player list information</td>
+              </tr>
+              <tr>
+                <td><code>AnimatePacket</code></td>
+                <td>Player animation (arm swing, damage, etc.)</td>
+              </tr>
+              <tr>
+                <td><code>ClientCommandPacket</code></td>
+                <td>Client commands (respawn, stats request)</td>
+              </tr>
+              <tr>
+                <td><code>EntityActionAtPositionPacket</code></td>
+                <td>Entity action at specific position</td>
+              </tr>
+              <tr>
+                <td><code>InteractPacket</code></td>
+                <td>Player interact with entity</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           Block/Tile Packets
+           ============================================================ -->
+      <section id="block-packets">
+        <h2>Block/Tile Packets</h2>
+        <p>Packets for block updates, tile entity synchronization, block destruction animations, and explosions.</p>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Packet</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>BlockRegionUpdatePacket</code></td>
+                <td>Update a region of blocks at once</td>
+              </tr>
+              <tr>
+                <td><code>ChunkTilesUpdatePacket</code></td>
+                <td>Multi-block update within a chunk</td>
+              </tr>
+              <tr>
+                <td><code>TileDestructionPacket</code></td>
+                <td>Block destruction animation</td>
+              </tr>
+              <tr>
+                <td><code>TileEntityDataPacket</code></td>
+                <td>Sync tile entity NBT data</td>
+              </tr>
+              <tr>
+                <td><code>TileEventPacket</code></td>
+                <td>Tile event (piston, noteblock, chest)</td>
+              </tr>
+              <tr>
+                <td><code>TileUpdatePacket</code></td>
+                <td>Single block update</td>
+              </tr>
+              <tr>
+                <td><code>ExplodePacket</code></td>
+                <td>Explosion with affected blocks</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           Communication Packets
+           ============================================================ -->
+      <section id="communication-packets">
+        <h2>Communication Packets</h2>
+        <p>Packets for chat messages, tab-completion, and custom plugin channel data.</p>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Packet</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>ChatPacket</code></td>
+                <td>Chat message (text, sender)</td>
+              </tr>
+              <tr>
+                <td><code>ChatAutoCompletePacket</code></td>
+                <td>Tab-completion suggestions</td>
+              </tr>
+              <tr>
+                <td><code>CustomPayloadPacket</code></td>
+                <td>Plugin channel data</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           Authentication/Connection Packets
+           ============================================================ -->
+      <section id="auth-packets">
+        <h2>Authentication/Connection Packets</h2>
+        <p>Packets for login handshakes, encryption, keepalive, disconnection, and client settings negotiation.</p>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Packet</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>LoginPacket</code></td>
+                <td>Login response with entity ID and spawn info</td>
+              </tr>
+              <tr>
+                <td><code>PreLoginPacket</code></td>
+                <td>Pre-login handshake</td>
+              </tr>
+              <tr>
+                <td><code>ClientProtocolPacket</code></td>
+                <td>Protocol version negotiation</td>
+              </tr>
+              <tr>
+                <td><code>ServerAuthDataPacket</code></td>
+                <td>Server authentication data</td>
+              </tr>
+              <tr>
+                <td><code>SharedKeyPacket</code></td>
+                <td>Encryption key exchange</td>
+              </tr>
+              <tr>
+                <td><code>GetInfoPacket</code></td>
+                <td>Server info request/response</td>
+              </tr>
+              <tr>
+                <td><code>KeepAlivePacket</code></td>
+                <td>Connection keepalive ping</td>
+              </tr>
+              <tr>
+                <td><code>DisconnectPacket</code></td>
+                <td>Disconnect with reason</td>
+              </tr>
+              <tr>
+                <td><code>KickPlayerPacket</code></td>
+                <td>Kick player with reason</td>
+              </tr>
+              <tr>
+                <td><code>RespawnPacket</code></td>
+                <td>Respawn player in dimension</td>
+              </tr>
+              <tr>
+                <td><code>ClientInformationPacket</code></td>
+                <td>Client settings (locale, view distance, etc.)</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           Game State Packets
+           ============================================================ -->
+      <section id="game-state-packets">
+        <h2>Game State Packets</h2>
+        <p>Packets for game events, level events, entity status, experience, health, statistics, and progress tracking.</p>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Packet</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>GameEventPacket</code></td>
+                <td>Game state changes (rain, game mode, etc.)</td>
+              </tr>
+              <tr>
+                <td><code>LevelEventPacket</code></td>
+                <td>Level events (sounds, particles)</td>
+              </tr>
+              <tr>
+                <td><code>EntityEventPacket</code></td>
+                <td>Entity status effects</td>
+              </tr>
+              <tr>
+                <td><code>GameCommandPacket</code></td>
+                <td>Game command execution</td>
+              </tr>
+              <tr>
+                <td><code>SetExperiencePacket</code></td>
+                <td>Set player experience</td>
+              </tr>
+              <tr>
+                <td><code>AwardStatPacket</code></td>
+                <td>Award statistic</td>
+              </tr>
+              <tr>
+                <td><code>SetHealthPacket</code></td>
+                <td>Set player health</td>
+              </tr>
+              <tr>
+                <td><code>UpdateProgressPacket</code></td>
+                <td>Update progress display</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           World Packets
+           ============================================================ -->
+      <section id="world-packets">
+        <h2>World Packets</h2>
+        <p>Packets for world-level state such as spawn position, time, sounds, and game rules.</p>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Packet</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>SetSpawnPositionPacket</code></td>
+                <td>Set world spawn point</td>
+              </tr>
+              <tr>
+                <td><code>SetTimePacket</code></td>
+                <td>Set world time</td>
+              </tr>
+              <tr>
+                <td><code>LevelSoundPacket</code></td>
+                <td>Play sound at position</td>
+              </tr>
+              <tr>
+                <td><code>UpdateGameRuleProgressPacket</code></td>
+                <td>Update game rule</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           Texture Packets
+           ============================================================ -->
+      <section id="texture-packets">
+        <h2>Texture Packets</h2>
+        <p>Packets for sending and updating texture and geometry data between server and client.</p>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Packet</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>TexturePacket</code></td>
+                <td>Send texture data</td>
+              </tr>
+              <tr>
+                <td><code>TextureChangePacket</code></td>
+                <td>Notify texture change</td>
+              </tr>
+              <tr>
+                <td><code>TextureAndGeometryPacket</code></td>
+                <td>Send texture with geometry</td>
+              </tr>
+              <tr>
+                <td><code>TextureAndGeometryChangePacket</code></td>
+                <td>Notify texture/geometry change</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           Other Packets
+           ============================================================ -->
+      <section id="other-packets">
+        <h2>Other Packets</h2>
+        <p>Additional packet types for chunk visibility, crafting, trading, item usage, server settings, debug options, and more.</p>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Packet</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>ChunkVisibilityPacket</code></td>
+                <td>Chunk visibility state</td>
+              </tr>
+              <tr>
+                <td><code>ChunkVisibilityAreaPacket</code></td>
+                <td>Area chunk visibility</td>
+              </tr>
+              <tr>
+                <td><code>CraftItemPacket</code></td>
+                <td>Craft item request</td>
+              </tr>
+              <tr>
+                <td><code>ComplexItemDataPacket</code></td>
+                <td>Complex item data (maps, etc.)</td>
+              </tr>
+              <tr>
+                <td><code>TradeItemPacket</code></td>
+                <td>Villager trade execution</td>
+              </tr>
+              <tr>
+                <td><code>UseItemPacket</code></td>
+                <td>Use item action</td>
+              </tr>
+              <tr>
+                <td><code>ServerSettingsChangedPacket</code></td>
+                <td>Server settings update</td>
+              </tr>
+              <tr>
+                <td><code>DebugOptionsPacket</code></td>
+                <td>Debug option change</td>
+              </tr>
+              <tr>
+                <td><code>SignUpdatePacket</code></td>
+                <td>Sign text update</td>
+              </tr>
+              <tr>
+                <td><code>XZPacket</code></td>
+                <td>XZ coordinate packet</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <hr>
+
+      <p class="text-subtext0">For information on how packets are used during the login handshake, see the <a href="getting-started.html">Getting Started</a> page for launch arguments. For entity-specific details, see the <a href="entities.html">Entities</a> page. For container and item interactions, see <a href="tiles-items.html">Tiles &amp; Items</a> and <a href="gameplay.html">Gameplay</a>.</p>
+
+      <footer class="site-footer">
+        <p>LCE Documentation &mdash; Generated for the LCEMP project by notpies</p>
+      </footer>
+    </main>
+  </div>
+  <div class="search-overlay" id="search-overlay">
+    <div class="search-modal">
+      <input type="text" class="search-input-large" id="search-input" placeholder="Search documentation..." autocomplete="off">
+      <div class="search-results" id="search-results"></div>
+    </div>
+  </div>
+  <script src="js/nav.js"></script>
+  <script src="js/search.js"></script>
+</body>
+</html>

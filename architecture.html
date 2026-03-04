@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Architecture - LCE Documentation</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    /* Architecture Diagram Styles */
+    .arch-diagram {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
+      margin: 2rem 0;
+      padding: 2rem 1.5rem;
+      background-color: var(--ctp-mantle);
+      border: 1px solid var(--ctp-surface0);
+      border-radius: 10px;
+    }
+
+    .arch-row {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+      flex-wrap: wrap;
+      width: 100%;
+    }
+
+    .arch-box {
+      background-color: var(--ctp-surface0);
+      border: 1px solid var(--ctp-surface1);
+      border-radius: 8px;
+      padding: 1.25rem 1.5rem;
+      text-align: center;
+      transition: border-color 200ms ease, transform 200ms ease;
+    }
+
+    .arch-box:hover {
+      border-color: var(--ctp-surface2);
+      transform: translateY(-2px);
+    }
+
+    .arch-box h3 {
+      margin: 0 0 0.4rem;
+      font-size: 1.1rem;
+    }
+
+    .arch-box p {
+      margin: 0;
+      font-size: 0.85rem;
+      color: var(--ctp-subtext0);
+    }
+
+    .arch-box .arch-meta {
+      font-size: 0.75rem;
+      color: var(--ctp-overlay0);
+      margin-top: 0.4rem;
+      font-family: var(--font-mono);
+    }
+
+    .arch-primary {
+      border-color: var(--ctp-mauve);
+      border-width: 2px;
+      min-width: 320px;
+      flex: 1;
+      max-width: 500px;
+    }
+
+    .arch-primary h3 {
+      color: var(--ctp-mauve);
+    }
+
+    .arch-secondary {
+      border-color: var(--ctp-green);
+      border-width: 2px;
+      min-width: 320px;
+      flex: 1;
+      max-width: 500px;
+    }
+
+    .arch-secondary h3 {
+      color: var(--ctp-green);
+    }
+
+    .arch-tertiary {
+      border-color: var(--ctp-peach);
+      border-width: 2px;
+      min-width: 200px;
+      flex: 1;
+      max-width: 320px;
+    }
+
+    .arch-tertiary h3 {
+      color: var(--ctp-peach);
+    }
+
+    .arch-connector {
+      color: var(--ctp-overlay0);
+      font-size: 0.85rem;
+      font-family: var(--font-mono);
+      padding: 0.25rem 0;
+      user-select: none;
+    }
+
+    .arch-platforms {
+      gap: 0.5rem;
+    }
+
+    .arch-platform {
+      min-width: auto !important;
+      padding: 0.5rem 1rem !important;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--ctp-sky);
+      background-color: var(--ctp-surface0);
+      border: 1px solid var(--ctp-surface1);
+      border-radius: 6px;
+    }
+
+    /* Game Loop Flow */
+    .loop-flow {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      margin: 1.5rem 0;
+    }
+
+    .loop-step {
+      display: flex;
+      align-items: stretch;
+      gap: 1rem;
+    }
+
+    .loop-step-number {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-width: 40px;
+    }
+
+    .loop-step-number .step-dot {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background-color: var(--ctp-surface0);
+      border: 2px solid var(--ctp-mauve);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--ctp-mauve);
+      flex-shrink: 0;
+    }
+
+    .loop-step-number .step-line {
+      width: 2px;
+      flex: 1;
+      background-color: var(--ctp-surface1);
+    }
+
+    .loop-step:last-child .step-line {
+      display: none;
+    }
+
+    .loop-step-content {
+      flex: 1;
+      padding: 0.5rem 0 1.25rem;
+    }
+
+    .loop-step-content h4 {
+      margin: 0 0 0.25rem;
+      font-size: 1rem;
+      color: var(--ctp-text);
+      font-family: var(--font-mono);
+    }
+
+    .loop-step-content p {
+      margin: 0;
+      font-size: 0.9rem;
+      color: var(--ctp-subtext0);
+    }
+
+    /* Pipeline Flow */
+    .pipeline-flow {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin: 1.5rem 0;
+      padding: 1.25rem;
+      background-color: var(--ctp-mantle);
+      border: 1px solid var(--ctp-surface0);
+      border-radius: 8px;
+    }
+
+    .pipeline-stage {
+      background-color: var(--ctp-surface0);
+      border: 1px solid var(--ctp-surface1);
+      border-radius: 6px;
+      padding: 0.5rem 0.75rem;
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      color: var(--ctp-blue);
+      white-space: nowrap;
+    }
+
+    .pipeline-arrow {
+      color: var(--ctp-overlay0);
+      font-size: 0.9rem;
+      user-select: none;
+    }
+
+    /* Split-screen diagram */
+    .splitscreen-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.5rem;
+      margin: 1.5rem 0;
+      max-width: 400px;
+    }
+
+    .splitscreen-cell {
+      background-color: var(--ctp-surface0);
+      border: 1px solid var(--ctp-surface1);
+      border-radius: 6px;
+      padding: 1rem;
+      text-align: center;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--ctp-subtext1);
+    }
+
+    .splitscreen-cell.p1 { border-color: var(--ctp-blue); color: var(--ctp-blue); }
+    .splitscreen-cell.p2 { border-color: var(--ctp-green); color: var(--ctp-green); }
+    .splitscreen-cell.p3 { border-color: var(--ctp-peach); color: var(--ctp-peach); }
+    .splitscreen-cell.p4 { border-color: var(--ctp-pink); color: var(--ctp-pink); }
+
+    /* Hierarchy tree */
+    .hierarchy-tree {
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      line-height: 1.8;
+      padding: 1.25rem;
+      background-color: var(--ctp-mantle);
+      border: 1px solid var(--ctp-surface0);
+      border-radius: 8px;
+      margin: 1rem 0;
+      overflow-x: auto;
+    }
+
+    .hierarchy-tree .h-root { color: var(--ctp-yellow); font-weight: 600; }
+    .hierarchy-tree .h-branch { color: var(--ctp-green); }
+    .hierarchy-tree .h-leaf { color: var(--ctp-blue); }
+    .hierarchy-tree .h-connector { color: var(--ctp-overlay0); }
+
+    /* Middleware badge */
+    .middleware-name {
+      font-weight: 600;
+      color: var(--ctp-text);
+    }
+
+    /* Cross-link callout */
+    .cross-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.6rem 1rem;
+      background-color: var(--ctp-surface0);
+      border: 1px solid var(--ctp-surface1);
+      border-radius: 8px;
+      font-size: 0.9rem;
+      color: var(--ctp-blue);
+      margin: 0.75rem 0;
+      transition: border-color 200ms ease, transform 200ms ease;
+    }
+
+    .cross-link:hover {
+      border-color: var(--ctp-blue);
+      transform: translateY(-1px);
+    }
+
+    .cross-link-arrow {
+      font-size: 1rem;
+    }
+
+    /* Info callout box */
+    .info-box {
+      background-color: var(--ctp-surface0);
+      border-left: 4px solid var(--ctp-blue);
+      border-radius: 0 8px 8px 0;
+      padding: 1rem 1.25rem;
+      margin: 1.25rem 0;
+    }
+
+    .info-box p {
+      margin: 0;
+      font-size: 0.9rem;
+    }
+
+    .info-box p + p {
+      margin-top: 0.5rem;
+    }
+
+    .info-box-label {
+      font-weight: 700;
+      color: var(--ctp-blue);
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.4rem;
+    }
+
+    @media (max-width: 768px) {
+      .arch-primary,
+      .arch-secondary,
+      .arch-tertiary {
+        min-width: 100%;
+      }
+
+      .pipeline-flow {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .pipeline-arrow {
+        transform: rotate(90deg);
+        align-self: center;
+      }
+
+      .splitscreen-grid {
+        max-width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <button class="hamburger" aria-label="Toggle navigation"><span></span><span></span><span></span></button>
+  <div class="site-wrapper">
+    <aside class="sidebar">
+      <div class="sidebar-header"><h1 class="sidebar-title">LCE Docs</h1><p class="sidebar-subtitle">Legacy Console Edition</p></div>
+      <div class="sidebar-search"><input type="text" placeholder="Search docs (Ctrl+K)" id="sidebar-search-input" autocomplete="off"></div>
+      <nav class="sidebar-nav">
+        <div class="nav-section"><div class="nav-section-title">Overview</div><a href="index.html" class="nav-link">Home</a><a href="getting-started.html" class="nav-link">Getting Started</a><a href="architecture.html" class="nav-link active">Architecture</a></div>
+        <div class="nav-section"><div class="nav-section-title">Systems</div><a href="rendering.html" class="nav-link">Rendering</a><a href="networking.html" class="nav-link">Networking</a><a href="world-gen.html" class="nav-link">World Generation</a><a href="entities.html" class="nav-link">Entities</a><a href="tiles-items.html" class="nav-link">Tiles &amp; Items</a><a href="ui-system.html" class="nav-link">UI System</a><a href="audio.html" class="nav-link">Audio</a><a href="storage.html" class="nav-link">Storage</a><a href="gameplay.html" class="nav-link">Gameplay</a><a href="platforms.html" class="nav-link">Platforms</a></div>
+      </nav>
+    </aside>
+    <main class="main-content">
+
+      <!-- Breadcrumb -->
+      <div class="breadcrumbs">
+        <a href="index.html">Home</a>
+        <span class="separator">/</span>
+        <span class="current">Architecture</span>
+      </div>
+
+      <h1>Architecture Overview</h1>
+      <p>The Minecraft Legacy Console Edition is a large-scale C++ codebase originally developed by <strong>4J Studios</strong> for porting Minecraft to console platforms. The engine is structured as a two-module monolith: a platform-independent game logic library and a platform-specific client executable. Together, they comprise over 3,500 source files spanning six target platforms, a custom rendering pipeline, Flash-based UI, and a fully integrated networking stack.</p>
+      <p>This page provides a bird's-eye view of the engine architecture, including the module split, game loop, rendering pipeline, entity system, and the middleware that ties it all together.</p>
+
+      <!-- ============================================================
+           High-Level Architecture
+           ============================================================ -->
+      <section id="high-level">
+        <h2>High-Level Architecture</h2>
+        <p>The codebase is divided into two primary compilation units. The <strong>World</strong> module contains all platform-independent game logic and is compiled into a static library. The <strong>Client</strong> module links against that library and adds rendering, audio, UI, and platform-specific code to produce the final executable.</p>
+
+        <div class="arch-diagram">
+          <div class="arch-row">
+            <div class="arch-box arch-primary">
+              <h3>Minecraft.Client</h3>
+              <p>Rendering, UI, Audio, Input, Platform-Specific Code</p>
+              <p class="arch-meta">~2,400+ files &bull; Win32 Executable (MinecraftClient)</p>
+            </div>
+          </div>
+          <div class="arch-connector">&darr; links against &darr;</div>
+          <div class="arch-row">
+            <div class="arch-box arch-secondary">
+              <h3>Minecraft.World</h3>
+              <p>Entities, Tiles, Items, Networking, World Gen, Storage</p>
+              <p class="arch-meta">~845 headers &bull; Static Library (MinecraftWorld.lib)</p>
+            </div>
+          </div>
+          <div class="arch-connector">&darr; platform abstraction layer &darr;</div>
+          <div class="arch-row arch-platforms">
+            <div class="arch-box arch-platform">Windows64</div>
+            <div class="arch-box arch-platform">Xbox 360</div>
+            <div class="arch-box arch-platform">Xbox One</div>
+            <div class="arch-box arch-platform">PS3</div>
+            <div class="arch-box arch-platform">PS4</div>
+            <div class="arch-box arch-platform">PS Vita</div>
+          </div>
+        </div>
+
+        <h3>Minecraft.World (Static Library)</h3>
+        <p>The World module is the heart of the game logic. It contains approximately <strong>845 header files</strong> and their corresponding implementations, compiled as the <code>MinecraftWorld</code> static library. This module is entirely platform-agnostic and houses:</p>
+        <ul>
+          <li><strong>Entity system</strong> &mdash; the full entity hierarchy from <code>Entity</code> through <code>Mob</code>, <code>Animal</code>, <code>Monster</code>, and all concrete mob types</li>
+          <li><strong>Tile system</strong> &mdash; all 97 block types with their behaviors, states, and tile entity logic</li>
+          <li><strong>Item system</strong> &mdash; 47+ item types, crafting recipes, enchantments, and the item registry</li>
+          <li><strong>Networking</strong> &mdash; 193+ packet types, the <code>Packet</code> base class, <code>PacketListener</code>, and connection management</li>
+          <li><strong>World generation</strong> &mdash; biomes, noise generators, the chunk generation pipeline, features, and structure generation</li>
+          <li><strong>Storage</strong> &mdash; McRegion format, NBT serialization, <code>LevelStorage</code>, and chunk I/O</li>
+          <li><strong>Level</strong> &mdash; the core <code>Level</code> class that holds the game world state, entity lists, and tick logic</li>
+          <li><strong>Gameplay</strong> &mdash; game rules, commands, achievements, containers, and enchantment tables</li>
+        </ul>
+
+        <h3>Minecraft.Client (Executable)</h3>
+        <p>The Client module is significantly larger, with <strong>over 2,400 files</strong>, and is compiled as the <code>MinecraftClient</code> Win32 executable. It links against the World library and adds everything needed to actually run the game on a specific platform:</p>
+        <ul>
+          <li><strong>Rendering engine</strong> &mdash; <code>GameRenderer</code>, <code>LevelRenderer</code>, <code>Tesselator</code>, 50+ entity renderers, particle effects, sky/cloud rendering</li>
+          <li><strong>UI system</strong> &mdash; Flash/Iggy-based UI with 22 control types, 61 menu scenes, and multi-resolution scaling</li>
+          <li><strong>Audio engine</strong> &mdash; Miles Sound System integration, 3D positional audio, music streaming</li>
+          <li><strong>Input handling</strong> &mdash; keyboard, mouse, gamepad, and touch (Vita) abstraction</li>
+          <li><strong>Platform layer</strong> &mdash; platform-specific implementations for each target console/PC</li>
+          <li><strong>Texture management</strong> &mdash; texture atlases, dynamic texture animation, and skin loading</li>
+          <li><strong>The <code>Minecraft</code> singleton</strong> &mdash; the top-level game controller that owns the game loop, level instances, and all subsystems</li>
+        </ul>
+      </section>
+
+      <!-- ============================================================
+           Game Loop
+           ============================================================ -->
+      <section id="game-loop">
+        <h2>Game Loop</h2>
+        <p>The game loop is driven by the <code>Minecraft</code> class, which acts as the central singleton (<code>Minecraft::GetInstance()</code>). The loop separates rendering (variable frame rate) from game logic (fixed 20 ticks per second), a pattern common to Minecraft across all editions.</p>
+
+        <div class="loop-flow">
+          <div class="loop-step">
+            <div class="loop-step-number">
+              <div class="step-dot">1</div>
+              <div class="step-line"></div>
+            </div>
+            <div class="loop-step-content">
+              <h4>Minecraft::init()</h4>
+              <p>Called once at startup. Initializes all game subsystems: loads textures and texture atlases, sets up the sound engine, creates the UI system, initializes the options and configuration, and prepares the renderer and particle engine for the first frame.</p>
+            </div>
+          </div>
+          <div class="loop-step">
+            <div class="loop-step-number">
+              <div class="step-dot">2</div>
+              <div class="step-line"></div>
+            </div>
+            <div class="loop-step-content">
+              <h4>Minecraft::run()</h4>
+              <p>The main game loop entry point. This method runs continuously and orchestrates each frame. It calculates delta time, processes input, determines how many game ticks need to run to catch up, and calls the rendering path. The timer system ensures game logic runs at a steady 20 TPS regardless of frame rate.</p>
+            </div>
+          </div>
+          <div class="loop-step">
+            <div class="loop-step-number">
+              <div class="step-dot">3</div>
+              <div class="step-line"></div>
+            </div>
+            <div class="loop-step-content">
+              <h4>Minecraft::tick()</h4>
+              <p>Executes one game logic tick (50ms at 20 TPS). This is where the game state advances: entities move and think, tile updates propagate, redstone ticks, the level ticks all loaded chunks, network packets are processed, and the UI state updates. Multiple ticks may run per frame if the frame rate drops below 20 FPS.</p>
+            </div>
+          </div>
+          <div class="loop-step">
+            <div class="loop-step-number">
+              <div class="step-dot">4</div>
+              <div class="step-line"></div>
+            </div>
+            <div class="loop-step-content">
+              <h4>Minecraft::run_middle()</h4>
+              <p>Mid-frame processing. Handles tasks that need to occur between the tick and the final render, such as updating particle positions at the interpolated frame time, processing deferred UI events, and preparing render state.</p>
+            </div>
+          </div>
+          <div class="loop-step">
+            <div class="loop-step-number">
+              <div class="step-dot">5</div>
+              <div class="step-line"></div>
+            </div>
+            <div class="loop-step-content">
+              <h4>GameRenderer::render()</h4>
+              <p>Renders the current frame. Sets up the camera, renders the level (terrain, entities, particles, sky, clouds), draws the HUD, and renders any active UI screens on top. In split-screen mode, this is called once per player viewport.</p>
+            </div>
+          </div>
+          <div class="loop-step">
+            <div class="loop-step-number">
+              <div class="step-dot">6</div>
+              <div class="step-line"></div>
+            </div>
+            <div class="loop-step-content">
+              <h4>Minecraft::run_end()</h4>
+              <p>End of frame. Swaps the front and back buffers to present the rendered frame, updates the FPS counter, and performs any end-of-frame cleanup before the loop begins again.</p>
+            </div>
+          </div>
+        </div>
+
+        <h3>The Minecraft Singleton</h3>
+        <p>The <code>Minecraft</code> class is the god object of the engine. It is accessed globally via <code>Minecraft::GetInstance()</code> and holds references to every major subsystem. Key members include:</p>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">Minecraft</span>
+            <span class="badge badge-type">Singleton</span>
+            <span class="badge badge-platform">Client</span>
+          </div>
+          <p class="class-description">Top-level game controller. Owns the game loop, all subsystems, and all active level/player state.</p>
+          <dl class="member-list">
+            <dt>Level* level</dt>
+            <dd>Pointer to the currently active game world (the Level instance for the primary dimension).</dd>
+            <dt>LevelRenderer* levelRenderer</dt>
+            <dd>The renderer responsible for drawing the world: chunks, entities, sky, and effects.</dd>
+            <dt>Player* player</dt>
+            <dd>The primary local player entity.</dd>
+            <dt>Player* localplayers[4]</dt>
+            <dd>Array of up to 4 local player entities for split-screen multiplayer.</dd>
+            <dt>Textures* textures</dt>
+            <dd>Texture manager handling atlas loading, dynamic textures, and GPU resource management.</dd>
+            <dt>Font* font</dt>
+            <dd>The bitmap font renderer used for in-game text.</dd>
+            <dt>Screen* screen</dt>
+            <dd>The currently active UI screen (menu, inventory, chat, etc.).</dd>
+            <dt>GameRenderer* gameRenderer</dt>
+            <dd>The top-level renderer that orchestrates camera setup, level rendering, and HUD drawing.</dd>
+            <dt>SoundEngine* soundEngine</dt>
+            <dd>Audio subsystem wrapping Miles Sound System for playback, 3D positioning, and streaming.</dd>
+            <dt>Options* options</dt>
+            <dd>Player-facing settings: render distance, controls, volume, difficulty, etc.</dd>
+            <dt>ParticleEngine* particleEngine</dt>
+            <dd>Manages and renders particle effects (block breaking, torches, potions, weather, etc.).</dd>
+            <dt>Timer timer</dt>
+            <dd>Frame timing and tick accumulator. Tracks delta time and determines how many ticks to run per frame.</dd>
+            <dt>int ticks</dt>
+            <dd>Global tick counter incremented each game tick (20 per second).</dd>
+          </dl>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           Rendering Pipeline
+           ============================================================ -->
+      <section id="rendering-pipeline">
+        <h2>Rendering Pipeline</h2>
+        <p>The rendering pipeline starts at <code>GameRenderer::render()</code> and flows through a series of stages to produce the final frame. Each stage handles a distinct visual layer of the world.</p>
+
+        <div class="pipeline-flow">
+          <div class="pipeline-stage">GameRenderer::render()</div>
+          <span class="pipeline-arrow">&rarr;</span>
+          <div class="pipeline-stage">setupCamera()</div>
+          <span class="pipeline-arrow">&rarr;</span>
+          <div class="pipeline-stage">LevelRenderer::render()</div>
+          <span class="pipeline-arrow">&rarr;</span>
+          <div class="pipeline-stage">Chunk Rendering</div>
+          <span class="pipeline-arrow">&rarr;</span>
+          <div class="pipeline-stage">renderEntities()</div>
+          <span class="pipeline-arrow">&rarr;</span>
+          <div class="pipeline-stage">Particles</div>
+          <span class="pipeline-arrow">&rarr;</span>
+          <div class="pipeline-stage">renderSky()</div>
+          <span class="pipeline-arrow">&rarr;</span>
+          <div class="pipeline-stage">renderClouds()</div>
+        </div>
+
+        <p>The pipeline begins by setting up the projection and view matrices based on the player's camera position and field of view. <code>LevelRenderer::render()</code> then performs frustum culling on loaded chunks and submits visible chunk geometry. Entity rendering follows, drawing all mobs, items, and other entities with their models and animations. Particles are rendered as camera-facing billboards. Finally, the sky dome and cloud layer are drawn as the background.</p>
+
+        <h3>Split-Screen Rendering</h3>
+        <p>LCE supports up to <strong>4 local players</strong> with fully independent viewports. Each player has their own camera, their own set of visible chunks, and their own rendering pass. The engine maintains parallel arrays for split-screen state:</p>
+        <ul>
+          <li><code>level[4]</code> &mdash; each viewport can potentially track a different dimension</li>
+          <li><code>chunks[4]</code> &mdash; independent chunk visibility sets per viewport</li>
+          <li><code>tileRenderer[4]</code> &mdash; separate tile rendering state per player to avoid conflicts</li>
+        </ul>
+
+        <div class="splitscreen-grid">
+          <div class="splitscreen-cell p1">Player 1</div>
+          <div class="splitscreen-cell p2">Player 2</div>
+          <div class="splitscreen-cell p3">Player 3</div>
+          <div class="splitscreen-cell p4">Player 4</div>
+        </div>
+
+        <p class="text-sm text-subtext0">The screen is divided into equal quadrants (or halves for 2-player). Each viewport runs the full rendering pipeline independently.</p>
+
+        <a href="rendering.html" class="cross-link">
+          <span class="cross-link-arrow">&rarr;</span> Full rendering documentation
+        </a>
+      </section>
+
+      <!-- ============================================================
+           Level & World
+           ============================================================ -->
+      <section id="level-world">
+        <h2>Level &amp; World</h2>
+        <p>The <code>Level</code> class is the core representation of the game world. It holds all loaded chunks, all active entities, all tile entities, and the world metadata. Every gameplay interaction &mdash; from placing a block to spawning a mob &mdash; flows through the Level.</p>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">Level</span>
+            <span class="badge badge-category">World</span>
+          </div>
+          <p class="class-description">The game world. Manages chunks, entities, tile updates, lighting, and world state. One instance per active dimension.</p>
+          <dl class="member-list">
+            <dt>ChunkSource* chunkSource</dt>
+            <dd>Provides chunks on demand, either from storage (loaded) or the world generator (new).</dd>
+            <dt>LevelStorage* levelStorage</dt>
+            <dd>Handles reading/writing chunks and level data to disk (McRegion format).</dd>
+            <dt>LevelData levelData</dt>
+            <dd>World metadata: seed, spawn position, time, weather, game rules, difficulty.</dd>
+            <dt>std::vector&lt;Entity*&gt; entities</dt>
+            <dd>All entities currently loaded in the level.</dd>
+            <dt>std::vector&lt;Player*&gt; players</dt>
+            <dd>All players currently in the level.</dd>
+            <dt>std::vector&lt;TileEntity*&gt; tileEntities</dt>
+            <dd>All active tile entities (chests, furnaces, signs, etc.).</dd>
+          </dl>
+          <h4 class="mt-2">Key Methods</h4>
+          <dl class="method-list">
+            <dt>int getTile(int x, int y, int z)</dt>
+            <dd>Returns the tile ID at the given world coordinates. Performs chunk lookup and bounds checking.</dd>
+            <dt>bool setTile(int x, int y, int z, int tileId)</dt>
+            <dd>Sets the tile at the given position. Triggers neighbor updates, lighting recalculation, and chunk dirty flagging.</dd>
+            <dt>void addEntity(Entity* entity)</dt>
+            <dd>Adds an entity to the level. Assigns it to the appropriate chunk for spatial partitioning.</dd>
+            <dt>void tick()</dt>
+            <dd>Advances the level by one game tick. Ticks weather, scheduled tile updates, mob spawning, and entity AI.</dd>
+            <dt>void tickEntities()</dt>
+            <dd>Iterates all entities and calls their individual tick() methods. Removes dead entities.</dd>
+          </dl>
+        </div>
+
+        <h3>LevelChunk</h3>
+        <p>Each chunk is a 16x16x256 column of blocks represented by the <code>LevelChunk</code> class. The chunk uses a compressed storage format that splits the column into upper and lower halves, with sparse storage for data values (orientation, state) and light levels.</p>
+
+        <ul>
+          <li><strong>Compressed tile storage</strong> &mdash; upper and lower halves stored separately to save memory in mostly-air upper regions</li>
+          <li><strong>Sparse data storage</strong> &mdash; block data values (4 bits per block) only allocated for sections that need them</li>
+          <li><strong>Light storage</strong> &mdash; separate block light and sky light arrays, also sparsely allocated</li>
+          <li><strong>Entity spatial partitioning</strong> &mdash; entities within the chunk are bucketed by Y-level into 16-block-tall sections for efficient queries</li>
+          <li><strong>Tile entities</strong> &mdash; a map of block positions to their associated <code>TileEntity</code> instances (chests, signs, furnaces, etc.)</li>
+          <li><strong>Biome data</strong> &mdash; per-column biome IDs used for grass/foliage coloring and mob spawning</li>
+          <li><strong>Heightmap</strong> &mdash; tracks the highest non-air block in each column for sky light optimization</li>
+        </ul>
+
+        <a href="storage.html" class="cross-link">
+          <span class="cross-link-arrow">&rarr;</span> Storage and save format details
+        </a>
+      </section>
+
+      <!-- ============================================================
+           Entity System
+           ============================================================ -->
+      <section id="entity-system">
+        <h2>Entity System</h2>
+        <p>The entity system uses a deep class hierarchy rooted at the <code>Entity</code> base class. Every object in the world that is not a block &mdash; players, mobs, dropped items, projectiles, minecarts, boats &mdash; is an entity. Mobs use a goal-based AI system with A* pathfinding.</p>
+
+        <h3>Entity Hierarchy</h3>
+        <div class="hierarchy-tree">
+<span class="h-root">Entity</span>
+<span class="h-connector">  &boxvr;&boxh;&boxh; </span><span class="h-branch">Mob</span>
+<span class="h-connector">  &boxv;     &boxvr;&boxh;&boxh; </span><span class="h-branch">PathfinderMob</span>
+<span class="h-connector">  &boxv;     &boxv;     &boxvr;&boxh;&boxh; </span><span class="h-branch">AgableMob</span>
+<span class="h-connector">  &boxv;     &boxv;     &boxv;     &boxvr;&boxh;&boxh; </span><span class="h-leaf">Animal</span> <span class="h-connector">(Pig, Cow, Sheep, Chicken, Wolf, ...)</span>
+<span class="h-connector">  &boxv;     &boxv;     &boxv;     &boxur;&boxh;&boxh; </span><span class="h-leaf">Villager</span>
+<span class="h-connector">  &boxv;     &boxv;     &boxur;&boxh;&boxh; </span><span class="h-branch">Monster</span>
+<span class="h-connector">  &boxv;     &boxv;           &boxvr;&boxh;&boxh; </span><span class="h-leaf">Zombie</span> <span class="h-connector">(+ ZombieVillager)</span>
+<span class="h-connector">  &boxv;     &boxv;           &boxvr;&boxh;&boxh; </span><span class="h-leaf">Skeleton</span>
+<span class="h-connector">  &boxv;     &boxv;           &boxvr;&boxh;&boxh; </span><span class="h-leaf">Creeper</span>
+<span class="h-connector">  &boxv;     &boxv;           &boxvr;&boxh;&boxh; </span><span class="h-leaf">Spider</span>
+<span class="h-connector">  &boxv;     &boxv;           &boxur;&boxh;&boxh; </span><span class="h-leaf">Enderman</span> <span class="h-connector">(...and more)</span>
+<span class="h-connector">  &boxv;     &boxur;&boxh;&boxh; </span><span class="h-leaf">Slime</span>
+<span class="h-connector">  &boxvr;&boxh;&boxh; </span><span class="h-branch">ItemEntity</span> <span class="h-connector">(dropped items)</span>
+<span class="h-connector">  &boxvr;&boxh;&boxh; </span><span class="h-branch">PrimedTnt</span>
+<span class="h-connector">  &boxvr;&boxh;&boxh; </span><span class="h-branch">FallingTile</span>
+<span class="h-connector">  &boxvr;&boxh;&boxh; </span><span class="h-branch">AbstractArrow</span> <span class="h-connector">(Arrow, ThrownTrident)</span>
+<span class="h-connector">  &boxur;&boxh;&boxh; </span><span class="h-branch">Minecart</span> <span class="h-connector">(+ subtypes)</span>
+        </div>
+
+        <h3>AI &amp; Pathfinding</h3>
+        <p>Mob behavior is driven by a <strong>goal-based AI system</strong>. Each mob has a <code>GoalSelector</code> that holds a prioritized list of <code>Goal</code> instances. Each tick, the GoalSelector evaluates which goals can start, which should continue, and which must stop. There are <strong>41 distinct AI goal types</strong> covering movement, combat, breeding, following, fleeing, and idle behaviors.</p>
+        <p>Pathfinding uses an <strong>A* algorithm</strong> implemented in <code>PathFinder</code>, with navigation handled by <code>PathNavigation</code>. The path is computed through the block grid, respecting solid blocks, doors, water, lava, and other obstacles. Path nodes are cached and reused within a tick to avoid redundant computation.</p>
+
+        <a href="entities.html" class="cross-link">
+          <span class="cross-link-arrow">&rarr;</span> Full entity system documentation
+        </a>
+      </section>
+
+      <!-- ============================================================
+           Networking
+           ============================================================ -->
+      <section id="networking-overview">
+        <h2>Networking</h2>
+        <p>LCE uses a <strong>packet-based client-server networking model</strong> with <strong>193+ distinct packet types</strong>. Every network interaction &mdash; player movement, block changes, chat messages, inventory actions, entity spawns &mdash; is serialized into a typed packet and sent over the wire.</p>
+
+        <h3>Packet Architecture</h3>
+        <p>All packets derive from the <code>Packet</code> base class, which defines three core virtual methods:</p>
+        <ul>
+          <li><code>read(ReadOnlyBinaryStream&amp;)</code> &mdash; deserialize packet data from a binary stream</li>
+          <li><code>write(BinaryStream&amp;)</code> &mdash; serialize packet data into a binary stream</li>
+          <li><code>handle(PacketListener&amp;)</code> &mdash; dispatch the packet to a handler on the receiving end</li>
+        </ul>
+
+        <p>The <code>PacketListener</code> interface defines handler methods for every packet type. Both the client and server implement this interface with their own handling logic. Packets are instantiated on the receiving end via a <strong>factory pattern</strong> using <code>Packet::idToCreateMap</code>, a static map from packet ID to constructor function.</p>
+
+        <div class="info-box">
+          <div class="info-box-label">Design Pattern</div>
+          <p>The factory pattern (<code>idToCreateMap</code>) allows the networking layer to instantiate the correct <code>Packet</code> subclass from just the numeric ID read off the wire, without a giant switch statement. Each packet type registers itself into the map at static initialization time.</p>
+        </div>
+
+        <a href="networking.html" class="cross-link">
+          <span class="cross-link-arrow">&rarr;</span> Full networking documentation with all 193+ packet types
+        </a>
+      </section>
+
+      <!-- ============================================================
+           Platform Abstraction
+           ============================================================ -->
+      <section id="platform-abstraction">
+        <h2>Platform Abstraction</h2>
+        <p>Shared, platform-independent code lives in the <code>Common/</code> folder. Each target platform then provides its own implementations of platform-specific interfaces in a dedicated folder. This clean separation allows the same game logic to run across vastly different hardware.</p>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Platform Folder</th>
+                <th>Target</th>
+                <th>Key Details</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>Windows64/</code></td>
+                <td>Windows PC</td>
+                <td>DirectX 11 rendering, keyboard &amp; mouse input, Win32 API</td>
+              </tr>
+              <tr>
+                <td><code>Xbox/</code></td>
+                <td>Xbox 360</td>
+                <td>Xbox 360 SDK, Kinect support, controller input</td>
+              </tr>
+              <tr>
+                <td><code>Durango/</code></td>
+                <td>Xbox One</td>
+                <td>Xbox One ERA SDK, enhanced graphics, expanded world size</td>
+              </tr>
+              <tr>
+                <td><code>PS3/</code></td>
+                <td>PlayStation 3</td>
+                <td>Cell SPU job system for parallelized workloads, RSX rendering</td>
+              </tr>
+              <tr>
+                <td><code>Orbis/</code></td>
+                <td>PlayStation 4</td>
+                <td>GNM/GNMX low-level graphics API, DualShock 4 input</td>
+              </tr>
+              <tr>
+                <td><code>PSVita/</code></td>
+                <td>PlayStation Vita</td>
+                <td>Touch input (front &amp; rear), smaller screen optimizations, reduced world size</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p>Each platform provides concrete implementations of the following abstract interfaces:</p>
+        <ul>
+          <li><strong>Network Manager</strong> &mdash; platform-specific socket and matchmaking layer (Xbox Live, PSN, LAN)</li>
+          <li><strong>Social / Achievements</strong> &mdash; integration with platform achievement and presence APIs</li>
+          <li><strong>Audio Backend</strong> &mdash; platform-specific audio output (DirectSound, platform audio APIs)</li>
+          <li><strong>UI / Input</strong> &mdash; controller mapping, virtual keyboard, touch input, and platform-specific UI conventions</li>
+          <li><strong>Asset Management</strong> &mdash; platform-specific file I/O, DLC enumeration, and resource loading</li>
+        </ul>
+
+        <a href="platforms.html" class="cross-link">
+          <span class="cross-link-arrow">&rarr;</span> Detailed platform-specific documentation
+        </a>
+      </section>
+
+      <!-- ============================================================
+           Middleware
+           ============================================================ -->
+      <section id="middleware">
+        <h2>Middleware</h2>
+        <p>The engine relies on several third-party middleware libraries for specialized functionality. These are linked as precompiled libraries and accessed through thin wrapper layers within the codebase.</p>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Middleware</th>
+                <th>Purpose</th>
+                <th>Library Files</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span class="middleware-name">4J Libraries</span></td>
+                <td>Input handling, persistent storage, player profiles, and the platform rendering abstraction layer</td>
+                <td><code>4J_Input.lib</code>, <code>4J_Storage.lib</code>, <code>4J_Profile.lib</code>, <code>4J_Render_PC.lib</code></td>
+              </tr>
+              <tr>
+                <td><span class="middleware-name">Iggy / Scaleform</span></td>
+                <td>Flash-based UI rendering engine. Drives all menus, HUD elements, and in-game UI through SWF files interpreted at runtime</td>
+                <td><code>iggy_w64.lib</code></td>
+              </tr>
+              <tr>
+                <td><span class="middleware-name">Miles Sound System</span></td>
+                <td>Audio playback engine. Handles WAV/OGG decoding, 3D positional audio, volume mixing, and music streaming</td>
+                <td><code>mss64.lib</code></td>
+              </tr>
+              <tr>
+                <td><span class="middleware-name">Sentient</span></td>
+                <td>Platform services layer providing abstracted access to achievements, leaderboards, and online functionality</td>
+                <td><code>Sentient*.lib</code> (platform-specific variants)</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="info-box">
+          <div class="info-box-label">Note</div>
+          <p>The 4J Libraries are proprietary middleware developed by 4J Studios themselves. They provide a consistent API for input, storage, and rendering across all target platforms, allowing the game code to remain platform-agnostic above the abstraction layer.</p>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           Threading Model
+           ============================================================ -->
+      <section id="threading">
+        <h2>Threading Model</h2>
+        <p>While the game loop itself is single-threaded at its core, LCE makes use of multiple threads and synchronization primitives for performance-critical and latency-sensitive work.</p>
+
+        <h3>Async Level Tick Thread</h3>
+        <p>Level ticking can be offloaded to an asynchronous thread to avoid blocking the main thread during heavy world updates. The system uses a <code>levelTickEventQueue</code> for inter-thread communication and <code>levelTickThreadInitFunc</code> to bootstrap the worker thread. This is particularly important on console hardware where frame budgets are tight.</p>
+
+        <h3>Thread-Local Storage</h3>
+        <p>The <code>Tesselator</code> &mdash; the low-level geometry builder used to convert block and entity data into renderable vertex buffers &mdash; uses a <strong>thread-local singleton</strong> pattern. This allows multiple threads to tessellate geometry simultaneously without locking, as each thread gets its own Tesselator instance with its own vertex buffer.</p>
+
+        <h3>Entity Management Synchronization</h3>
+        <p>Entity lists in the <code>Level</code> class are protected by <strong>critical sections</strong>. Adding and removing entities must acquire the lock to prevent concurrent modification during the tick/render cycle. This is especially important in split-screen mode where rendering threads may iterate the entity list while the game tick thread modifies it.</p>
+
+        <h3>Async Chunk Rebuilding</h3>
+        <p>When a chunk is modified (blocks placed/broken, lighting changes), its renderable geometry needs to be rebuilt. This rebuild is performed <strong>asynchronously</strong> &mdash; the dirty chunk is added to a rebuild queue and a background thread processes it, generating new vertex data that is swapped in on the main thread when ready.</p>
+
+        <h3>Memory Management</h3>
+        <p>The engine uses <code>C4JMemoryPool</code>, a custom pooled allocator from the 4J Libraries. It provides fast allocation and deallocation for frequently created/destroyed objects (particles, entities, packets) by pre-allocating memory blocks and recycling them, reducing heap fragmentation and allocation overhead on console hardware where memory is limited.</p>
+      </section>
+
+      <!-- ============================================================
+           Key Classes Reference
+           ============================================================ -->
+      <section id="key-classes">
+        <h2>Key Classes Reference</h2>
+        <p>A quick reference of the most important classes in the codebase. Each class links to its detailed documentation page for deeper exploration.</p>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Class</th>
+                <th>Module</th>
+                <th>Description</th>
+                <th>Details</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>Minecraft</code></td>
+                <td><span class="badge badge-type">Client</span></td>
+                <td>Singleton game controller. Owns the game loop, all subsystems, all level and player state.</td>
+                <td><a href="architecture.html#game-loop">Game Loop</a></td>
+              </tr>
+              <tr>
+                <td><code>Level</code></td>
+                <td><span class="badge badge-category">World</span></td>
+                <td>The game world. Manages chunks, entities, tile updates, lighting, and world state.</td>
+                <td><a href="storage.html">Storage</a></td>
+              </tr>
+              <tr>
+                <td><code>Entity</code></td>
+                <td><span class="badge badge-category">World</span></td>
+                <td>Base class for all non-block objects: mobs, items, projectiles, vehicles.</td>
+                <td><a href="entities.html">Entities</a></td>
+              </tr>
+              <tr>
+                <td><code>Tile</code></td>
+                <td><span class="badge badge-category">World</span></td>
+                <td>Base class for all block types. Defines placement, breaking, rendering shape, and update behavior.</td>
+                <td><a href="tiles-items.html">Tiles &amp; Items</a></td>
+              </tr>
+              <tr>
+                <td><code>Item</code></td>
+                <td><span class="badge badge-category">World</span></td>
+                <td>Base class for all item types. Handles use actions, stacking, durability, and crafting.</td>
+                <td><a href="tiles-items.html">Tiles &amp; Items</a></td>
+              </tr>
+              <tr>
+                <td><code>Packet</code></td>
+                <td><span class="badge badge-category">World</span></td>
+                <td>Base class for all network packets. Defines read/write serialization and handler dispatch.</td>
+                <td><a href="networking.html">Networking</a></td>
+              </tr>
+              <tr>
+                <td><code>GameRenderer</code></td>
+                <td><span class="badge badge-type">Client</span></td>
+                <td>Top-level renderer. Orchestrates camera, level rendering, HUD, and post-processing.</td>
+                <td><a href="rendering.html">Rendering</a></td>
+              </tr>
+              <tr>
+                <td><code>LevelRenderer</code></td>
+                <td><span class="badge badge-type">Client</span></td>
+                <td>World renderer. Manages chunk visibility, terrain drawing, entity rendering, sky, and clouds.</td>
+                <td><a href="rendering.html">Rendering</a></td>
+              </tr>
+              <tr>
+                <td><code>UIScene</code></td>
+                <td><span class="badge badge-type">Client</span></td>
+                <td>Base class for UI screens. All menus, inventories, and HUD overlays derive from this.</td>
+                <td><a href="ui-system.html">UI System</a></td>
+              </tr>
+              <tr>
+                <td><code>SoundEngine</code></td>
+                <td><span class="badge badge-type">Client</span></td>
+                <td>Audio subsystem. Wraps Miles Sound System for 3D positional audio, music, and sound effects.</td>
+                <td><a href="audio.html">Audio</a></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <footer class="site-footer"><p>LCE Documentation &mdash; Generated for the LCEMP project by notpies</p></footer>
+    </main>
+  </div>
+  <div class="search-overlay" id="search-overlay"><div class="search-modal"><input type="text" class="search-input-large" id="search-input" placeholder="Search documentation..." autocomplete="off"><div class="search-results" id="search-results"></div></div></div>
+  <script src="js/nav.js"></script>
+  <script src="js/search.js"></script>
+</body>
+</html>

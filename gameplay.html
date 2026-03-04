@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gameplay Systems - LCE Documentation</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <button class="hamburger" aria-label="Toggle navigation">
+    <span></span><span></span><span></span>
+  </button>
+  <div class="site-wrapper">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <h1 class="sidebar-title">LCE Docs</h1>
+        <p class="sidebar-subtitle">Legacy Console Edition</p>
+      </div>
+      <div class="sidebar-search">
+        <input type="text" placeholder="Search docs (Ctrl+K)" id="sidebar-search-input" autocomplete="off">
+      </div>
+      <nav class="sidebar-nav">
+        <div class="nav-section">
+          <div class="nav-section-title">Overview</div>
+          <a href="index.html" class="nav-link">Home</a>
+          <a href="getting-started.html" class="nav-link">Getting Started</a>
+          <a href="architecture.html" class="nav-link">Architecture</a>
+        </div>
+        <div class="nav-section">
+          <div class="nav-section-title">Systems</div>
+          <a href="rendering.html" class="nav-link">Rendering</a>
+          <a href="networking.html" class="nav-link">Networking</a>
+          <a href="world-gen.html" class="nav-link">World Generation</a>
+          <a href="entities.html" class="nav-link">Entities</a>
+          <a href="tiles-items.html" class="nav-link">Tiles &amp; Items</a>
+          <a href="ui-system.html" class="nav-link">UI System</a>
+          <a href="audio.html" class="nav-link">Audio</a>
+          <a href="storage.html" class="nav-link">Storage</a>
+          <a href="gameplay.html" class="nav-link active">Gameplay</a>
+          <a href="platforms.html" class="nav-link">Platforms</a>
+        </div>
+      </nav>
+    </aside>
+    <main class="main-content">
+
+      <div class="breadcrumbs"><a href="index.html">Home</a> <span class="separator">/</span> Gameplay Systems</div>
+
+      <h1>Gameplay Systems</h1>
+      <p>This page covers the game mechanics systems: recipes, enchantments, containers/menus, commands, achievements, and stats. These systems work together to provide the core Minecraft gameplay experience.</p>
+
+      <!-- ============================================================
+           Recipe System
+           ============================================================ -->
+      <section id="recipes">
+        <h2>Recipe System</h2>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">Recipes</span>
+          </div>
+          <div class="class-description">
+            <p>Main recipe registry. Holds all crafting recipes and provides lookup by crafting grid contents.</p>
+          </div>
+        </div>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">ShapedRecipe</span>
+          </div>
+          <div class="class-description">
+            <p>Fixed-pattern recipe (e.g., pickaxe shape).</p>
+          </div>
+        </div>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">ShapelessRecipe</span>
+          </div>
+          <div class="class-description">
+            <p>Order-independent recipe (e.g., mushroom stew).</p>
+          </div>
+        </div>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">FurnaceRecipes</span>
+          </div>
+          <div class="class-description">
+            <p>Smelting recipes registry (input &rarr; output + XP).</p>
+          </div>
+        </div>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">MerchantRecipe</span>
+          </div>
+          <div class="class-description">
+            <p>Villager trade recipe (input items &rarr; output item, max uses).</p>
+          </div>
+        </div>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">MerchantRecipeList</span>
+          </div>
+          <div class="class-description">
+            <p>List of available trades for a villager.</p>
+          </div>
+        </div>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">ArmorDyeRecipe</span>
+          </div>
+          <div class="class-description">
+            <p>Special recipe for dyeing leather armor.</p>
+          </div>
+        </div>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">ArmorRecipes</span>
+          </div>
+          <div class="class-description">
+            <p>Armor crafting recipe definitions.</p>
+          </div>
+        </div>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">ClothDyeRecipes</span>
+          </div>
+          <div class="class-description">
+            <p>Wool/cloth dyeing recipes.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           Enchantment System
+           ============================================================ -->
+      <section id="enchantments">
+        <h2>Enchantment System</h2>
+
+        <h3>Enchantment Base Class</h3>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">Enchantment</span>
+          </div>
+          <div class="class-meta">Minecraft.World/Enchantment.h</div>
+          <div class="class-description">
+            <p>Base class for all enchantment types. Defines the enchantment's identity, weight for random selection, category for applicability, and cost range calculations per level.</p>
+
+            <h4>Members</h4>
+            <dl class="member-list">
+              <dt>id <span class="text-overlay0">(int)</span></dt>
+              <dd>Unique numeric identifier for this enchantment.</dd>
+              <dt>name <span class="text-overlay0">(string)</span></dt>
+              <dd>Internal name of the enchantment.</dd>
+              <dt>weight <span class="text-overlay0">(int)</span></dt>
+              <dd>Rarity weight used when randomly selecting enchantments.</dd>
+              <dt>category <span class="text-overlay0">(EnchantmentCategory)</span></dt>
+              <dd>Category determining which item types this enchantment can apply to.</dd>
+            </dl>
+
+            <h4>Methods</h4>
+            <dl class="method-list">
+              <dt>getMinCost(int level) &rarr; int</dt>
+              <dd>Returns the minimum enchanting cost required for the given enchantment level.</dd>
+              <dt>getMaxCost(int level) &rarr; int</dt>
+              <dd>Returns the maximum enchanting cost for the given enchantment level.</dd>
+              <dt>getMaxLevel() &rarr; int</dt>
+              <dd>Returns the maximum level this enchantment can reach.</dd>
+              <dt>canEnchant(ItemInstance) &rarr; bool</dt>
+              <dd>Checks whether this enchantment can be applied to the given item.</dd>
+              <dt>isCompatibleWith(Enchantment) &rarr; bool</dt>
+              <dd>Checks whether this enchantment is compatible with another enchantment on the same item.</dd>
+            </dl>
+          </div>
+        </div>
+
+        <h3>Support Classes</h3>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">EnchantmentHelper</span>
+          </div>
+          <div class="class-description">
+            <p>Utility methods for applying and querying enchantments on items.</p>
+          </div>
+        </div>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">EnchantmentInstance</span>
+          </div>
+          <div class="class-description">
+            <p>A specific enchantment at a specific level on an item.</p>
+          </div>
+        </div>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">EnchantmentSlot</span>
+          </div>
+          <div class="class-description">
+            <p>Slot in enchanting table UI.</p>
+          </div>
+        </div>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">EnchantmentCategory</span>
+          </div>
+          <div class="class-description">
+            <p>Categories: weapon, armor, tool, bow.</p>
+          </div>
+        </div>
+
+        <h3>Enchantment Types</h3>
+
+        <details>
+          <summary>All 15 Enchantment Types</summary>
+          <div class="details-content">
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Class</th>
+                    <th>Name</th>
+                    <th>Applies To</th>
+                    <th>Max Level</th>
+                    <th>Description</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><code>ProtectionEnchantment</code></td>
+                    <td>Protection</td>
+                    <td>Armor</td>
+                    <td>IV</td>
+                    <td>Reduces damage from most sources</td>
+                  </tr>
+                  <tr>
+                    <td><code>DamageEnchantment</code></td>
+                    <td>Sharpness/Smite/Bane</td>
+                    <td>Weapon</td>
+                    <td>V</td>
+                    <td>Increases melee damage</td>
+                  </tr>
+                  <tr>
+                    <td><code>KnockbackEnchantment</code></td>
+                    <td>Knockback</td>
+                    <td>Weapon</td>
+                    <td>II</td>
+                    <td>Increases knockback on hit</td>
+                  </tr>
+                  <tr>
+                    <td><code>FireAspectEnchantment</code></td>
+                    <td>Fire Aspect</td>
+                    <td>Weapon</td>
+                    <td>II</td>
+                    <td>Sets target on fire</td>
+                  </tr>
+                  <tr>
+                    <td><code>LootBonusEnchantment</code></td>
+                    <td>Looting/Fortune</td>
+                    <td>Weapon/Tool</td>
+                    <td>III</td>
+                    <td>Increases drop rates</td>
+                  </tr>
+                  <tr>
+                    <td><code>DiggingEnchantment</code></td>
+                    <td>Efficiency</td>
+                    <td>Tool</td>
+                    <td>V</td>
+                    <td>Increases mining speed</td>
+                  </tr>
+                  <tr>
+                    <td><code>UntouchingEnchantment</code></td>
+                    <td>Silk Touch</td>
+                    <td>Tool</td>
+                    <td>I</td>
+                    <td>Drops block itself</td>
+                  </tr>
+                  <tr>
+                    <td><code>DigDurabilityEnchantment</code></td>
+                    <td>Unbreaking</td>
+                    <td>Any</td>
+                    <td>III</td>
+                    <td>Reduces durability loss</td>
+                  </tr>
+                  <tr>
+                    <td><code>ArrowDamageEnchantment</code></td>
+                    <td>Power</td>
+                    <td>Bow</td>
+                    <td>V</td>
+                    <td>Increases arrow damage</td>
+                  </tr>
+                  <tr>
+                    <td><code>ArrowKnockbackEnchantment</code></td>
+                    <td>Punch</td>
+                    <td>Bow</td>
+                    <td>II</td>
+                    <td>Increases arrow knockback</td>
+                  </tr>
+                  <tr>
+                    <td><code>ArrowFireEnchantment</code></td>
+                    <td>Flame</td>
+                    <td>Bow</td>
+                    <td>I</td>
+                    <td>Arrows set fire</td>
+                  </tr>
+                  <tr>
+                    <td><code>ArrowInfiniteEnchantment</code></td>
+                    <td>Infinity</td>
+                    <td>Bow</td>
+                    <td>I</td>
+                    <td>Infinite arrows (needs 1)</td>
+                  </tr>
+                  <tr>
+                    <td><code>OxygenEnchantment</code></td>
+                    <td>Respiration</td>
+                    <td>Helmet</td>
+                    <td>III</td>
+                    <td>Extends underwater breathing</td>
+                  </tr>
+                  <tr>
+                    <td><code>WaterWorkerEnchantment</code></td>
+                    <td>Aqua Affinity</td>
+                    <td>Helmet</td>
+                    <td>I</td>
+                    <td>Normal mining speed underwater</td>
+                  </tr>
+                  <tr>
+                    <td><code>ThornsEnchantment</code></td>
+                    <td>Thorns</td>
+                    <td>Armor</td>
+                    <td>III</td>
+                    <td>Damages attackers</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </details>
+      </section>
+
+      <!-- ============================================================
+           Container System
+           ============================================================ -->
+      <section id="containers">
+        <h2>Container System</h2>
+
+        <h3>Base Classes</h3>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">AbstractContainerMenu</span>
+          </div>
+          <div class="class-description">
+            <p>Base for all container UIs with slot management.</p>
+          </div>
+        </div>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">Container</span>
+          </div>
+          <div class="class-description">
+            <p>Item storage container.</p>
+          </div>
+        </div>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">ContainerMenu</span>
+          </div>
+          <div class="class-description">
+            <p>Generic container menu.</p>
+          </div>
+        </div>
+
+        <h3>Container Types</h3>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Class</th>
+                <th>Slots</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>SimpleContainer</code></td>
+                <td>Variable</td>
+                <td>Basic storage (chests, dispensers)</td>
+              </tr>
+              <tr>
+                <td><code>CraftingContainer</code></td>
+                <td>4 or 9</td>
+                <td>Crafting grid (2x2 inventory, 3x3 table)</td>
+              </tr>
+              <tr>
+                <td><code>CompoundContainer</code></td>
+                <td>Variable</td>
+                <td>Multiple containers combined (double chest)</td>
+              </tr>
+              <tr>
+                <td><code>ResultContainer</code></td>
+                <td>1</td>
+                <td>Crafting/smelting output slot</td>
+              </tr>
+              <tr>
+                <td><code>RepairContainer</code></td>
+                <td>3</td>
+                <td>Anvil repair slots</td>
+              </tr>
+              <tr>
+                <td><code>MerchantContainer</code></td>
+                <td>3</td>
+                <td>Villager trading slots</td>
+              </tr>
+              <tr>
+                <td><code>EnchantmentContainer</code></td>
+                <td>2</td>
+                <td>Enchanting table slots</td>
+              </tr>
+              <tr>
+                <td><code>PlayerEnderChestContainer</code></td>
+                <td>27</td>
+                <td>Per-player ender chest</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>Menu Types</h3>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Class</th>
+                <th>Container</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>InventoryMenu</code></td>
+                <td>Player inventory</td>
+                <td>2x2 crafting, armor, inventory</td>
+              </tr>
+              <tr>
+                <td><code>CraftingMenu</code></td>
+                <td>CraftingContainer</td>
+                <td>3x3 crafting table</td>
+              </tr>
+              <tr>
+                <td><code>FurnaceMenu</code></td>
+                <td>FurnaceTileEntity</td>
+                <td>Smelting input/fuel/output</td>
+              </tr>
+              <tr>
+                <td><code>BrewingStandMenu</code></td>
+                <td>BrewingStandTileEntity</td>
+                <td>3 potion slots + ingredient</td>
+              </tr>
+              <tr>
+                <td><code>EnchantmentMenu</code></td>
+                <td>EnchantmentContainer</td>
+                <td>Item + lapis slots</td>
+              </tr>
+              <tr>
+                <td><code>RepairMenu</code></td>
+                <td>RepairContainer</td>
+                <td>Anvil repair/rename</td>
+              </tr>
+              <tr>
+                <td><code>MerchantMenu</code></td>
+                <td>MerchantContainer</td>
+                <td>Villager trading</td>
+              </tr>
+              <tr>
+                <td><code>TrapMenu</code></td>
+                <td>DispenserTileEntity</td>
+                <td>Dispenser/dropper 9 slots</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           Command System
+           ============================================================ -->
+      <section id="commands">
+        <h2>Command System</h2>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">Command</span>
+          </div>
+          <div class="class-description">
+            <p>Base class for all game commands.</p>
+          </div>
+        </div>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">CommandDispatcher</span>
+          </div>
+          <div class="class-description">
+            <p>Parses and routes commands to the appropriate handler.</p>
+          </div>
+        </div>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">CommandSender</span>
+            <span class="badge badge-type">Interface</span>
+          </div>
+          <div class="class-description">
+            <p>Interface for entities that can execute commands.</p>
+          </div>
+        </div>
+
+        <h3>All Commands</h3>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Class</th>
+                <th>Command</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>TimeCommand</code></td>
+                <td><code>/time</code></td>
+                <td>Set or query world time</td>
+              </tr>
+              <tr>
+                <td><code>KillCommand</code></td>
+                <td><code>/kill</code></td>
+                <td>Kill target entity</td>
+              </tr>
+              <tr>
+                <td><code>GiveItemCommand</code></td>
+                <td><code>/give</code></td>
+                <td>Give items to player</td>
+              </tr>
+              <tr>
+                <td><code>DefaultGameModeCommand</code></td>
+                <td><code>/defaultgamemode</code></td>
+                <td>Set default game mode</td>
+              </tr>
+              <tr>
+                <td><code>GameModeCommand</code></td>
+                <td><code>/gamemode</code></td>
+                <td>Change player game mode</td>
+              </tr>
+              <tr>
+                <td><code>ExperienceCommand</code></td>
+                <td><code>/xp</code></td>
+                <td>Give experience to player</td>
+              </tr>
+              <tr>
+                <td><code>EnchantItemCommand</code></td>
+                <td><code>/enchant</code></td>
+                <td>Enchant held item</td>
+              </tr>
+              <tr>
+                <td><code>AdminLogCommand</code></td>
+                <td><code>/admin</code></td>
+                <td>Admin logging</td>
+              </tr>
+              <tr>
+                <td><code>ToggleDownfallCommand</code></td>
+                <td><code>/toggledownfall</code></td>
+                <td>Toggle rain/snow</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           Achievement System
+           ============================================================ -->
+      <section id="achievements">
+        <h2>Achievement System</h2>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">Achievement</span>
+          </div>
+          <div class="class-description">
+            <p>Single achievement with criteria and parent dependency.</p>
+          </div>
+        </div>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">Achievements</span>
+          </div>
+          <div class="class-description">
+            <p>Registry of all achievements (tree structure).</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           Statistics
+           ============================================================ -->
+      <section id="stats">
+        <h2>Statistics</h2>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">Stats</span>
+          </div>
+          <div class="class-description">
+            <p>Statistics tracking manager.</p>
+          </div>
+        </div>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">CommonStats</span>
+          </div>
+          <div class="class-description">
+            <p>Cross-platform statistics.</p>
+          </div>
+        </div>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">GenericStats</span>
+          </div>
+          <div class="class-description">
+            <p>General gameplay statistics (distance walked, jumps, etc.).</p>
+          </div>
+        </div>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">ItemStat</span>
+          </div>
+          <div class="class-description">
+            <p>Per-item statistics (times used, crafted, broken).</p>
+          </div>
+        </div>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">DurangoStats</span>
+            <span class="badge badge-platform">Xbox One</span>
+          </div>
+          <div class="class-description">
+            <p>Xbox One specific stats.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           Mob Effects
+           ============================================================ -->
+      <section id="mob-effects">
+        <h2>Mob Effects</h2>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">MobEffect</span>
+          </div>
+          <div class="class-description">
+            <p>Status effect definition (speed, strength, poison, etc.).</p>
+          </div>
+        </div>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">MobEffectInstance</span>
+          </div>
+          <div class="class-description">
+            <p>Active effect on a mob with duration and amplifier.</p>
+          </div>
+        </div>
+      </section>
+
+      <footer class="site-footer">
+        <p>LCE Documentation &mdash; Generated for the LCEMP project by notpies</p>
+      </footer>
+    </main>
+  </div>
+  <div class="search-overlay" id="search-overlay">
+    <div class="search-modal">
+      <input type="text" class="search-input-large" id="search-input" placeholder="Search documentation..." autocomplete="off">
+      <div class="search-results" id="search-results"></div>
+    </div>
+  </div>
+  <script src="js/nav.js"></script>
+  <script src="js/search.js"></script>
+</body>
+</html>

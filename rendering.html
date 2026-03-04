@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rendering System - LCE Documentation</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <button class="hamburger" aria-label="Toggle navigation"><span></span><span></span><span></span></button>
+  <div class="site-wrapper">
+    <aside class="sidebar">
+      <div class="sidebar-header"><h1 class="sidebar-title">LCE Docs</h1><p class="sidebar-subtitle">Legacy Console Edition</p></div>
+      <div class="sidebar-search"><input type="text" placeholder="Search docs (Ctrl+K)" id="sidebar-search-input" autocomplete="off"></div>
+      <nav class="sidebar-nav">
+        <div class="nav-section"><div class="nav-section-title">Overview</div><a href="index.html" class="nav-link">Home</a><a href="getting-started.html" class="nav-link">Getting Started</a><a href="architecture.html" class="nav-link">Architecture</a></div>
+        <div class="nav-section"><div class="nav-section-title">Systems</div><a href="rendering.html" class="nav-link active">Rendering</a><a href="networking.html" class="nav-link">Networking</a><a href="world-gen.html" class="nav-link">World Generation</a><a href="entities.html" class="nav-link">Entities</a><a href="tiles-items.html" class="nav-link">Tiles &amp; Items</a><a href="ui-system.html" class="nav-link">UI System</a><a href="audio.html" class="nav-link">Audio</a><a href="storage.html" class="nav-link">Storage</a><a href="gameplay.html" class="nav-link">Gameplay</a><a href="platforms.html" class="nav-link">Platforms</a></div>
+      </nav>
+    </aside>
+    <main class="main-content">
+
+      <!-- Breadcrumb -->
+      <div class="breadcrumbs">
+        <a href="index.html">Home</a>
+        <span class="separator">/</span>
+        <span class="current">Rendering System</span>
+      </div>
+
+      <h1>Rendering System</h1>
+
+      <!-- ================================================================
+           Overview
+           ================================================================ -->
+      <section id="overview">
+        <h2>Overview</h2>
+        <p>The LCE rendering pipeline is coordinated by three core classes. <strong>GameRenderer</strong> serves as the top-level render coordinator: it configures the camera, builds the light texture, and delegates world drawing to <strong>LevelRenderer</strong>. LevelRenderer is responsible for chunk-based world rendering, entity drawing, sky and cloud passes, and particle effects. Actual geometry submission flows through the <strong>Tesselator</strong>, a thread-local singleton that assembles vertex buffers with position, texture coordinate, color, and normal data before flushing them to the graphics API.</p>
+        <p>A key design consideration is <strong>split-screen multiplayer</strong>. The engine supports up to <strong>4 independent viewports</strong>, each with its own camera, FOV, light texture, level reference, chunk array, and tile renderer instance. Arrays indexed by player slot (e.g. <code>fov[4]</code>, <code>level[4]</code>, <code>chunks[4]</code>) appear throughout the renderer classes to facilitate this.</p>
+        <p>Visibility determination uses a <strong>Culler</strong> interface for frustum culling. Before any chunk or entity is drawn, it is tested against the active culler to discard geometry that falls outside the current viewport's view frustum, keeping draw calls within budget on console hardware.</p>
+      </section>
+
+      <!-- ================================================================
+           GameRenderer
+           ================================================================ -->
+      <section id="gamerenderer">
+        <h2>GameRenderer</h2>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">GameRenderer</span>
+          </div>
+          <div class="class-meta">Minecraft.Client/GameRenderer.h</div>
+          <p class="class-description">Main render coordinator. Sets up the camera each frame, manages per-player light textures, and orchestrates the full rendering pass by delegating world, entity, sky, and GUI drawing to the appropriate subsystems.</p>
+
+          <h4>Key Members</h4>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr><th>Member</th><th>Type</th><th>Description</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>mc</code></td><td><code>Minecraft*</code></td><td>Back-pointer to the owning Minecraft instance</td></tr>
+                <tr><td><code>itemInHandRenderer</code></td><td><code>ItemInHandRenderer</code></td><td>Renders the first-person held item / arm</td></tr>
+                <tr><td><code>smoothTurnX</code></td><td><code>SmoothFloat</code></td><td>Smoothed horizontal camera rotation</td></tr>
+                <tr><td><code>smoothTurnY</code></td><td><code>SmoothFloat</code></td><td>Smoothed vertical camera rotation</td></tr>
+                <tr><td><code>fov[4]</code></td><td><code>float</code></td><td>Current field-of-view per player viewport</td></tr>
+                <tr><td><code>oFov[4]</code></td><td><code>float</code></td><td>Previous-frame FOV for interpolation</td></tr>
+                <tr><td><code>lightTexture[4]</code></td><td><code>int</code></td><td>GL texture ID for the light map per viewport</td></tr>
+                <tr><td><code>blr</code></td><td><code>float</code></td><td>Sky light blend value (red channel)</td></tr>
+                <tr><td><code>blrt</code></td><td><code>float</code></td><td>Sky light blend target (red channel)</td></tr>
+                <tr><td><code>blg</code></td><td><code>float</code></td><td>Sky light blend value (green channel)</td></tr>
+                <tr><td><code>blgt</code></td><td><code>float</code></td><td>Sky light blend target (green channel)</td></tr>
+                <tr><td><code>random</code></td><td><code>Random</code></td><td>Random number generator for rendering effects</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h4>Key Methods</h4>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr><th>Method</th><th>Description</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>tick(bool)</code></td><td>Per-tick update: advances smooth-turn values, updates FOV transitions, refreshes light textures</td></tr>
+                <tr><td><code>pick(float)</code></td><td>Raycasts from the camera to determine the block/entity the player is looking at</td></tr>
+                <tr><td><code>setupCamera(float, int)</code></td><td>Configures projection and modelview matrices for the given partial-tick and viewport index</td></tr>
+                <tr><td><code>render(float, bool)</code></td><td>Top-level render entry point called each frame; dispatches to <code>renderLevel</code> or GUI as needed</td></tr>
+                <tr><td><code>renderLevel(float)</code></td><td>Renders the 3D world: sets up camera, draws sky, chunks, entities, particles, hand overlay</td></tr>
+                <tr><td><code>updateAllChunks()</code></td><td>Forces a rebuild of every dirty chunk across all viewports</td></tr>
+                <tr><td><code>SetFovVal(float)</code></td><td>Sets the base field-of-view value</td></tr>
+                <tr><td><code>GetFovVal()</code></td><td>Returns the current base field-of-view value</td></tr>
+                <tr><td><code>getLightTexture(int, Level*)</code></td><td>Builds or retrieves the 16x16 light-map texture for the given viewport and level</td></tr>
+                <tr><td><code>setupGuiScreen(int)</code></td><td>Configures the orthographic projection for 2D GUI rendering</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h4>Static Members</h4>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr><th>Member</th><th>Type</th><th>Description</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>anaglyph3d</code></td><td><code>bool</code></td><td>Enables anaglyph (red-cyan) 3D rendering mode</td></tr>
+                <tr><td><code>anaglyphPass</code></td><td><code>int</code></td><td>Current anaglyph pass index (0 = left eye, 1 = right eye)</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================================================================
+           LevelRenderer
+           ================================================================ -->
+      <section id="levelrenderer">
+        <h2>LevelRenderer</h2>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">LevelRenderer</span>
+            <span class="inheritance-badge">extends <span class="parent-class">LevelListener</span></span>
+          </div>
+          <div class="class-meta">Minecraft.Client/LevelRenderer.h</div>
+          <p class="class-description">Renders the world including chunks, entities, sky, clouds, and hit-selection overlays. Implements the <code>LevelListener</code> interface to receive tile-change notifications and trigger chunk rebuilds. Supports split-screen with per-player arrays for levels, chunk lists, and tile renderers.</p>
+
+          <h4>Key Members</h4>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr><th>Member</th><th>Type</th><th>Description</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>mc</code></td><td><code>Minecraft*</code></td><td>Back-pointer to the Minecraft instance</td></tr>
+                <tr><td><code>textures</code></td><td><code>TextureManager*</code></td><td>Texture manager for binding atlas textures</td></tr>
+                <tr><td><code>level[4]</code></td><td><code>MultiPlayerLevel*</code></td><td>Per-player level reference (one per split-screen viewport)</td></tr>
+                <tr><td><code>chunks[4]</code></td><td><code>ClipChunkArray</code></td><td>Per-player sorted/clipped chunk arrays for rendering</td></tr>
+                <tr><td><code>tileRenderer[4]</code></td><td><code>TileRenderer</code></td><td>Per-player tile renderer instance for block faces</td></tr>
+                <tr><td><code>xChunks</code></td><td><code>int</code></td><td>Number of chunk columns along the X axis</td></tr>
+                <tr><td><code>yChunks</code></td><td><code>int</code></td><td>Number of chunk sections along the Y axis</td></tr>
+                <tr><td><code>zChunks</code></td><td><code>int</code></td><td>Number of chunk columns along the Z axis</td></tr>
+                <tr><td><code>starList</code></td><td><code>int</code></td><td>Display list ID for the star field</td></tr>
+                <tr><td><code>skyList</code></td><td><code>int</code></td><td>Display list ID for the upper sky dome</td></tr>
+                <tr><td><code>darkList</code></td><td><code>int</code></td><td>Display list ID for the void/dark sky plane</td></tr>
+                <tr><td><code>haloRingList</code></td><td><code>int</code></td><td>Display list ID for the sun/moon halo ring</td></tr>
+                <tr><td><code>cloudList</code></td><td><code>int</code></td><td>Display list ID for the cloud layer</td></tr>
+                <tr><td><code>destroyedTileManager</code></td><td><code>DestroyedTileManager</code></td><td>Manages block-breaking crack overlay textures</td></tr>
+                <tr><td><code>globalChunkFlags</code></td><td><code>int</code></td><td>Bitmask flags for global chunk rebuild state</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h4>Key Methods</h4>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr><th>Method</th><th>Description</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>setLevel(int, MultiPlayerLevel*)</code></td><td>Assigns a level to the given player viewport slot and initializes chunk geometry</td></tr>
+                <tr><td><code>render(shared_ptr&lt;Mob&gt;, int, double, bool) &rarr; int</code></td><td>Main world render pass; returns the number of rendered chunks</td></tr>
+                <tr><td><code>tick()</code></td><td>Per-tick update: advances animations, rebuilds dirty chunks, updates particles</td></tr>
+                <tr><td><code>renderSky(float)</code></td><td>Draws the sky dome, sun, moon, stars, and horizon gradient</td></tr>
+                <tr><td><code>renderClouds(float)</code></td><td>Draws the cloud layer at the configured cloud height</td></tr>
+                <tr><td><code>renderEntities(Vec3*, Culler*, float)</code></td><td>Iterates all entities in the level and dispatches their rendering through EntityRenderDispatcher</td></tr>
+                <tr><td><code>cull(Culler*, float)</code></td><td>Performs frustum culling on chunks using the provided Culler interface</td></tr>
+                <tr><td><code>tileChanged(int, int, int)</code></td><td>Callback: marks the chunk containing the given block coordinates as dirty</td></tr>
+                <tr><td><code>tileLightChanged(int, int, int)</code></td><td>Callback: marks the chunk as needing a light-data rebuild</td></tr>
+                <tr><td><code>addParticle(ePARTICLE_TYPE, double x, y, z, double xa, ya, za)</code></td><td>Spawns a particle of the given type at the specified position with initial velocity</td></tr>
+                <tr><td><code>renderHit(...)</code></td><td>Draws the block selection/hit wireframe overlay on the targeted block face</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================================================================
+           Tesselator
+           ================================================================ -->
+      <section id="tesselator">
+        <h2>Tesselator</h2>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">Tesselator</span>
+          </div>
+          <div class="class-meta">Minecraft.Client/Tesselator.h</div>
+          <p class="class-description">Thread-local singleton for submitting geometry to the graphics API. The Tesselator manages a growable vertex buffer and tracks per-vertex attributes (position, texture coordinates, color, normals). All block, entity, and particle rendering ultimately flows through this class. Each rendering thread maintains its own Tesselator instance to avoid synchronization overhead.</p>
+
+          <h4>Key Members</h4>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr><th>Member</th><th>Type</th><th>Description</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>_array</code></td><td><code>intArray*</code></td><td>Raw vertex buffer backing store</td></tr>
+                <tr><td><code>u</code></td><td><code>float</code></td><td>Current texture U coordinate</td></tr>
+                <tr><td><code>v</code></td><td><code>float</code></td><td>Current texture V coordinate</td></tr>
+                <tr><td><code>col</code></td><td><code>int</code></td><td>Current packed RGBA color value</td></tr>
+                <tr><td><code>hasColor</code></td><td><code>bool</code></td><td>Whether color data is being emitted for vertices</td></tr>
+                <tr><td><code>hasTexture</code></td><td><code>bool</code></td><td>Whether texture coordinates are being emitted</td></tr>
+                <tr><td><code>hasNormal</code></td><td><code>bool</code></td><td>Whether normal vectors are being emitted</td></tr>
+                <tr><td><code>mode</code></td><td><code>int</code></td><td>Current render mode (GL_QUADS, GL_TRIANGLES, etc.)</td></tr>
+                <tr><td><code>xo</code></td><td><code>float</code></td><td>Position offset X (applied to all subsequent vertices)</td></tr>
+                <tr><td><code>yo</code></td><td><code>float</code></td><td>Position offset Y</td></tr>
+                <tr><td><code>zo</code></td><td><code>float</code></td><td>Position offset Z</td></tr>
+                <tr><td><code>vboIds</code></td><td><code>int[]</code></td><td>VBO handle array for hardware buffered geometry</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h4>Key Methods</h4>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr><th>Method</th><th>Description</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>getInstance()</code> <span class="badge badge-type">static</span></td><td>Returns the thread-local Tesselator instance</td></tr>
+                <tr><td><code>begin()</code></td><td>Starts a new geometry batch with the default render mode (GL_QUADS)</td></tr>
+                <tr><td><code>begin(int mode)</code></td><td>Starts a new geometry batch with the specified render mode</td></tr>
+                <tr><td><code>vertex(float x, float y, float z)</code></td><td>Emits a vertex at the given position (also flushes current tex/color/normal state)</td></tr>
+                <tr><td><code>tex(float u, float v)</code></td><td>Sets the texture coordinates for subsequent vertices</td></tr>
+                <tr><td><code>color(int r, int g, int b, int a)</code></td><td>Sets the vertex color (overloaded: accepts int components or a packed int)</td></tr>
+                <tr><td><code>normal(float x, float y, float z)</code></td><td>Sets the normal vector for subsequent vertices</td></tr>
+                <tr><td><code>offset(float xo, float yo, float zo)</code></td><td>Sets the position offset added to all future vertex positions</td></tr>
+                <tr><td><code>end()</code></td><td>Finalizes the current batch and submits the vertex buffer to the graphics API</td></tr>
+                <tr><td><code>hasMaxVertices()</code></td><td>Returns whether the vertex buffer has reached its capacity limit</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================================================================
+           TileRenderer
+           ================================================================ -->
+      <section id="tilerenderer">
+        <h2>TileRenderer</h2>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">TileRenderer</span>
+          </div>
+          <div class="class-meta">Minecraft.Client/TileRenderer.h</div>
+          <p class="class-description">Renders block (tile) faces into the Tesselator. One <code>TileRenderer</code> instance exists per player viewport to support split-screen rendering. Handles all block render shapes including standard cubes, cross-shaped plants, slabs, stairs, fences, doors, redstone wire, torches, rails, and other specialized geometries. Each shape variant has a dedicated render method that computes the correct UVs and vertex positions based on the block's metadata and surrounding neighbors.</p>
+        </div>
+      </section>
+
+      <!-- ================================================================
+           EntityRenderDispatcher
+           ================================================================ -->
+      <section id="entity-render-dispatcher">
+        <h2>EntityRenderDispatcher</h2>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">EntityRenderDispatcher</span>
+          </div>
+          <div class="class-meta">Minecraft.Client/EntityRenderDispatcher.h</div>
+          <p class="class-description">Central dispatch point for entity rendering. Maintains a registry mapping entity types to their corresponding <code>EntityRenderer</code> subclass. When <code>LevelRenderer::renderEntities</code> iterates the entity list, each entity is passed to the dispatcher, which looks up the appropriate renderer and invokes its <code>render</code> method with the correct position, rotation, and partial-tick interpolation values. Also manages the global camera position used by all entity renderers for distance-based LOD and facing calculations.</p>
+        </div>
+      </section>
+
+      <!-- ================================================================
+           Entity Renderers
+           ================================================================ -->
+      <section id="entity-renderers">
+        <h2>Entity Renderers</h2>
+        <p>LCE ships with over 50 specialized entity renderers, each responsible for drawing a specific mob, vehicle, projectile, or effect entity. Every renderer extends a base <code>EntityRenderer</code> class (or the more specific <code>MobRenderer</code> for living entities) and overrides methods for model binding, texture selection, and animation.</p>
+
+        <details>
+          <summary>All Entity Renderers (50+)</summary>
+          <div class="details-content">
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr><th>Renderer Class</th><th>Category</th><th>Description</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td><code>BlazeRenderer</code></td><td><span class="badge badge-category">Hostile</span></td><td>Renders the Blaze mob with rotating rod segments</td></tr>
+                  <tr><td><code>BoatRenderer</code></td><td><span class="badge badge-platform">Vehicle</span></td><td>Renders the wooden boat entity</td></tr>
+                  <tr><td><code>ChickenRenderer</code></td><td><span class="badge badge-category">Passive</span></td><td>Renders chickens with wing-flap animation</td></tr>
+                  <tr><td><code>CowRenderer</code></td><td><span class="badge badge-category">Passive</span></td><td>Renders cows</td></tr>
+                  <tr><td><code>CreeperRenderer</code></td><td><span class="badge badge-category">Hostile</span></td><td>Renders creepers with flash-white swell effect</td></tr>
+                  <tr><td><code>EnderDragonRenderer</code></td><td><span class="badge badge-category">Boss</span></td><td>Renders the Ender Dragon with multi-part body segments</td></tr>
+                  <tr><td><code>EndermanRenderer</code></td><td><span class="badge badge-category">Hostile</span></td><td>Renders Endermen with carried-block overlay</td></tr>
+                  <tr><td><code>FallingTileRenderer</code></td><td><span class="badge badge-platform">Block</span></td><td>Renders falling sand/gravel entities</td></tr>
+                  <tr><td><code>FireworkRenderer</code></td><td><span class="badge badge-platform">Projectile</span></td><td>Renders firework rocket entities</td></tr>
+                  <tr><td><code>FishingHookRenderer</code></td><td><span class="badge badge-platform">Projectile</span></td><td>Renders the fishing rod bobber and line</td></tr>
+                  <tr><td><code>GhastRenderer</code></td><td><span class="badge badge-category">Hostile</span></td><td>Renders Ghasts with tentacle animation</td></tr>
+                  <tr><td><code>GolemRenderer</code></td><td><span class="badge badge-category">Passive</span></td><td>Renders Iron Golems and Snow Golems</td></tr>
+                  <tr><td><code>GuardianRenderer</code></td><td><span class="badge badge-category">Hostile</span></td><td>Renders Guardians and Elder Guardians with beam attack</td></tr>
+                  <tr><td><code>HorseRenderer</code></td><td><span class="badge badge-category">Passive</span></td><td>Renders horses, donkeys, and mules with armor layers</td></tr>
+                  <tr><td><code>HumanoidMobRenderer</code></td><td><span class="badge badge-type">Base</span></td><td>Base renderer for humanoid-shaped mobs (bipedal model)</td></tr>
+                  <tr><td><code>ItemEntityRenderer</code></td><td><span class="badge badge-platform">Item</span></td><td>Renders dropped item entities with bobbing animation</td></tr>
+                  <tr><td><code>ItemFrameRenderer</code></td><td><span class="badge badge-platform">Block</span></td><td>Renders item frame entities and their contained items</td></tr>
+                  <tr><td><code>LeashKnotRenderer</code></td><td><span class="badge badge-platform">Block</span></td><td>Renders lead knot entities attached to fences</td></tr>
+                  <tr><td><code>LightningRenderer</code></td><td><span class="badge badge-platform">Effect</span></td><td>Renders lightning bolt entities</td></tr>
+                  <tr><td><code>MagmaCubeRenderer</code></td><td><span class="badge badge-category">Hostile</span></td><td>Renders Magma Cubes with squish/stretch animation</td></tr>
+                  <tr><td><code>MinecartRenderer</code></td><td><span class="badge badge-platform">Vehicle</span></td><td>Renders all minecart variants (rideable, chest, hopper, TNT, spawner)</td></tr>
+                  <tr><td><code>MushroomCowRenderer</code></td><td><span class="badge badge-category">Passive</span></td><td>Renders Mooshrooms with mushroom overlay</td></tr>
+                  <tr><td><code>OcelotRenderer</code></td><td><span class="badge badge-category">Passive</span></td><td>Renders ocelots and tamed cats</td></tr>
+                  <tr><td><code>PaintingRenderer</code></td><td><span class="badge badge-platform">Block</span></td><td>Renders painting entities with correct canvas texture</td></tr>
+                  <tr><td><code>PigRenderer</code></td><td><span class="badge badge-category">Passive</span></td><td>Renders pigs with optional saddle layer</td></tr>
+                  <tr><td><code>PlayerRenderer</code></td><td><span class="badge badge-type">Player</span></td><td>Renders player entities with skin, cape, and armor layers</td></tr>
+                  <tr><td><code>PrimedTntRenderer</code></td><td><span class="badge badge-platform">Block</span></td><td>Renders primed TNT with flash-white blinking</td></tr>
+                  <tr><td><code>RabbitRenderer</code></td><td><span class="badge badge-category">Passive</span></td><td>Renders rabbits</td></tr>
+                  <tr><td><code>SheepRenderer</code></td><td><span class="badge badge-category">Passive</span></td><td>Renders sheep with dyed wool layer</td></tr>
+                  <tr><td><code>ShotRenderer</code></td><td><span class="badge badge-platform">Projectile</span></td><td>Renders generic projectile entities (arrows, snowballs, eggs)</td></tr>
+                  <tr><td><code>SilverFishRenderer</code></td><td><span class="badge badge-category">Hostile</span></td><td>Renders silverfish mobs</td></tr>
+                  <tr><td><code>SkeletonRenderer</code></td><td><span class="badge badge-category">Hostile</span></td><td>Renders skeletons and wither skeletons</td></tr>
+                  <tr><td><code>SlimeRenderer</code></td><td><span class="badge badge-category">Hostile</span></td><td>Renders slimes with translucent outer layer</td></tr>
+                  <tr><td><code>SpiderRenderer</code></td><td><span class="badge badge-category">Hostile</span></td><td>Renders spiders and cave spiders with glowing eyes</td></tr>
+                  <tr><td><code>SquidRenderer</code></td><td><span class="badge badge-category">Passive</span></td><td>Renders squids with tentacle animation</td></tr>
+                  <tr><td><code>TntMinecartRenderer</code></td><td><span class="badge badge-platform">Vehicle</span></td><td>Renders TNT minecarts with blinking TNT payload</td></tr>
+                  <tr><td><code>VillagerRenderer</code></td><td><span class="badge badge-category">Passive</span></td><td>Renders villagers with profession-based textures</td></tr>
+                  <tr><td><code>WitchRenderer</code></td><td><span class="badge badge-category">Hostile</span></td><td>Renders witches with nose wart and hat</td></tr>
+                  <tr><td><code>WitherBossRenderer</code></td><td><span class="badge badge-category">Boss</span></td><td>Renders the Wither boss with shield and invulnerability effects</td></tr>
+                  <tr><td><code>WitherSkullRenderer</code></td><td><span class="badge badge-platform">Projectile</span></td><td>Renders wither skull projectiles</td></tr>
+                  <tr><td><code>WolfRenderer</code></td><td><span class="badge badge-category">Passive</span></td><td>Renders wolves with tame/angry state and collar color</td></tr>
+                  <tr><td><code>XpOrbRenderer</code></td><td><span class="badge badge-platform">Item</span></td><td>Renders experience orb entities</td></tr>
+                  <tr><td><code>ZombieRenderer</code></td><td><span class="badge badge-category">Hostile</span></td><td>Renders zombies and zombie villagers</td></tr>
+                  <tr><td><code>ZombiePigmanRenderer</code></td><td><span class="badge badge-category">Hostile</span></td><td>Renders zombie pigmen</td></tr>
+                  <tr><td><code>BatRenderer</code></td><td><span class="badge badge-category">Passive</span></td><td>Renders bats with wing-flap animation</td></tr>
+                  <tr><td><code>EndermiteRenderer</code></td><td><span class="badge badge-category">Hostile</span></td><td>Renders endermites</td></tr>
+                  <tr><td><code>ArmorStandRenderer</code></td><td><span class="badge badge-platform">Block</span></td><td>Renders armor stands with equipped armor pieces</td></tr>
+                  <tr><td><code>EnderCrystalRenderer</code></td><td><span class="badge badge-platform">Effect</span></td><td>Renders ender crystals with rotating cube and beam</td></tr>
+                  <tr><td><code>LargeFireballRenderer</code></td><td><span class="badge badge-platform">Projectile</span></td><td>Renders ghast fireballs</td></tr>
+                  <tr><td><code>SmallFireballRenderer</code></td><td><span class="badge badge-platform">Projectile</span></td><td>Renders blaze fireballs</td></tr>
+                  <tr><td><code>EvokerFangsRenderer</code></td><td><span class="badge badge-platform">Effect</span></td><td>Renders evoker fang attack entities</td></tr>
+                  <tr><td><code>ShulkerRenderer</code></td><td><span class="badge badge-category">Hostile</span></td><td>Renders shulkers with opening/closing animation</td></tr>
+                  <tr><td><code>VexRenderer</code></td><td><span class="badge badge-category">Hostile</span></td><td>Renders vex mobs</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </details>
+      </section>
+
+      <!-- ================================================================
+           Particle System
+           ================================================================ -->
+      <section id="particle-system">
+        <h2>Particle System</h2>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">ParticleEngine</span>
+          </div>
+          <div class="class-meta">Minecraft.Client/ParticleEngine.h</div>
+          <p class="class-description">Manages all active particle instances in the world. Referenced by <code>LevelRenderer</code>, the particle engine is responsible for ticking, rendering, and culling the particle pool. Particles are grouped by render layer (normal, translucent, lit) and drawn in batch after the main world pass. The engine handles particle creation from <code>LevelRenderer::addParticle</code> calls, lifetime management, and disposal of expired particles.</p>
+        </div>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">Particle</span>
+          </div>
+          <div class="class-meta">Minecraft.Client/Particle.h</div>
+          <p class="class-description">Abstract base class for all particle types. Each particle tracks its world position (<code>x</code>, <code>y</code>, <code>z</code>), velocity (<code>xd</code>, <code>yd</code>, <code>zd</code>), remaining lifetime, texture region, RGBA color, and billboard size. Subclasses override <code>tick()</code> to implement custom motion (gravity, drag, oscillation) and <code>render()</code> to customize the visual output (texture animation, color fade, scaling).</p>
+
+          <h4>Base Members</h4>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr><th>Member</th><th>Type</th><th>Description</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>x, y, z</code></td><td><code>double</code></td><td>World-space position</td></tr>
+                <tr><td><code>xd, yd, zd</code></td><td><code>double</code></td><td>Velocity per tick</td></tr>
+                <tr><td><code>lifetime</code></td><td><code>int</code></td><td>Remaining ticks before removal</td></tr>
+                <tr><td><code>age</code></td><td><code>int</code></td><td>Current age in ticks</td></tr>
+                <tr><td><code>rCol, gCol, bCol</code></td><td><code>float</code></td><td>RGB color components (0.0 &ndash; 1.0)</td></tr>
+                <tr><td><code>quadSize</code></td><td><code>float</code></td><td>Billboard quad size in world units</td></tr>
+                <tr><td><code>uo, vo</code></td><td><code>float</code></td><td>Texture atlas UV offset</td></tr>
+                <tr><td><code>gravity</code></td><td><code>float</code></td><td>Downward acceleration per tick</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <h3>Particle Types</h3>
+        <p>The engine supports 30+ distinct particle types, each implemented as a <code>Particle</code> subclass with unique behavior and visuals.</p>
+
+        <details>
+          <summary>All Particle Types (30+)</summary>
+          <div class="details-content">
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr><th>Particle Class</th><th>Visual</th><th>Description</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td><code>BreakingItemParticle</code></td><td>Item fragment</td><td>Fragments when an item/tool breaks or an egg/potion shatters</td></tr>
+                  <tr><td><code>BubbleParticle</code></td><td>Bubble</td><td>Rising bubbles produced underwater</td></tr>
+                  <tr><td><code>CritParticle</code></td><td>Star</td><td>Critical hit star particles (standard)</td></tr>
+                  <tr><td><code>CritParticle2</code></td><td>Enchanted star</td><td>Critical hit particles with enchantment tint (sharpness)</td></tr>
+                  <tr><td><code>DragonBreathParticle</code></td><td>Purple mist</td><td>Ender Dragon breath attack lingering particles</td></tr>
+                  <tr><td><code>DripParticle</code></td><td>Drip</td><td>Water or lava drips from blocks above (stalactite effect)</td></tr>
+                  <tr><td><code>EchantmentTableParticle</code></td><td>Glyph</td><td>Floating glyph characters emitted by enchantment tables</td></tr>
+                  <tr><td><code>EnderParticle</code></td><td>Purple spark</td><td>Ender teleportation trail particles</td></tr>
+                  <tr><td><code>ExplodeParticle</code></td><td>Grey puff</td><td>Small explosion puffs from TNT and creeper blasts</td></tr>
+                  <tr><td><code>FlameParticle</code></td><td>Flame</td><td>Fire flame particles from torches, furnaces, and blazes</td></tr>
+                  <tr><td><code>FootstepParticle</code></td><td>Footprint</td><td>Faint footprint decals left on certain blocks</td></tr>
+                  <tr><td><code>GuiParticle</code></td><td>GUI effect</td><td>Particle effect rendered in GUI / screen space</td></tr>
+                  <tr><td><code>GuiParticles</code></td><td>GUI batch</td><td>Batch variant of GUI particle effects</td></tr>
+                  <tr><td><code>HeartParticle</code></td><td>Heart</td><td>Hearts emitted when breeding animals or taming wolves</td></tr>
+                  <tr><td><code>HugeExplosionParticle</code></td><td>Expanding sphere</td><td>Large explosion visual (animated expanding sphere)</td></tr>
+                  <tr><td><code>HugeExplosionSeedParticle</code></td><td>Seed</td><td>Initial seed that spawns the full HugeExplosionParticle</td></tr>
+                  <tr><td><code>LavaParticle</code></td><td>Ember</td><td>Glowing ember particles popping from lava surfaces</td></tr>
+                  <tr><td><code>NetherPortalParticle</code></td><td>Purple swirl</td><td>Swirling purple particles around nether portal frames</td></tr>
+                  <tr><td><code>NoteParticle</code></td><td>Note</td><td>Colored music note particles from note blocks</td></tr>
+                  <tr><td><code>PlayerCloudParticle</code></td><td>Puff</td><td>Cloud puff from player sprinting or using fireworks in flight</td></tr>
+                  <tr><td><code>RedDustParticle</code></td><td>Red spark</td><td>Redstone dust activation particles (red colored)</td></tr>
+                  <tr><td><code>SmokeParticle</code></td><td>Smoke wisp</td><td>Smoke wisps from torches, fire, and furnaces</td></tr>
+                  <tr><td><code>SnowShovelParticle</code></td><td>Snowflake</td><td>Snow fragments when digging snow layers</td></tr>
+                  <tr><td><code>SpellParticle</code></td><td>Spiral</td><td>Swirling potion/spell effect particles (colored by potion type)</td></tr>
+                  <tr><td><code>SplashParticle</code></td><td>Droplet</td><td>Water splash droplets from rain, swimming, and fishing</td></tr>
+                  <tr><td><code>SuspendedParticle</code></td><td>Mote</td><td>Tiny floating particles suspended in water (underwater ambience)</td></tr>
+                  <tr><td><code>SuspendedTownParticle</code></td><td>Sparkle</td><td>Happy villager / mycelium surface sparkle particles</td></tr>
+                  <tr><td><code>TakeAnimationParticle</code></td><td>Collect</td><td>Animates an item entity flying towards the collecting player</td></tr>
+                  <tr><td><code>TerrainParticle</code></td><td>Block fragment</td><td>Block-textured fragments when breaking or landing on blocks</td></tr>
+                  <tr><td><code>WaterDropParticle</code></td><td>Drop</td><td>Rain droplets landing on surfaces</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </details>
+      </section>
+
+      <!-- ================================================================
+           Texture System
+           ================================================================ -->
+      <section id="texture-system">
+        <h2>Texture System</h2>
+        <p>LCE uses a texture management stack that handles loading, caching, atlas stitching, and runtime texture pack switching. The system is designed to support the default built-in assets as well as downloadable content (DLC) texture packs on console platforms.</p>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">TextureManager</span>
+          </div>
+          <div class="class-meta">Minecraft.Client/TextureManager.h</div>
+          <p class="class-description">Central texture resource manager. Loads image files from the active texture pack, uploads them to the GPU, and manages the resulting texture handles. Provides methods for binding textures by name or ID, and handles animated texture ticking (e.g. water, lava, fire). Also responsible for reloading all textures when the active texture pack changes.</p>
+        </div>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">TexturePack</span>
+          </div>
+          <div class="class-meta">Minecraft.Client/TexturePack.h</div>
+          <p class="class-description">Abstract interface for a texture pack. Provides methods to open image resources by path, query available textures, and read pack metadata. Concrete implementations handle different resource sources (built-in, file system, DLC).</p>
+        </div>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">StitchedTexture</span>
+          </div>
+          <div class="class-meta">Minecraft.Client/StitchedTexture.h</div>
+          <p class="class-description">Represents a texture atlas built by stitching together multiple individual block or item textures into a single large GPU texture. Stores the UV mapping table that maps each source texture name to its region within the atlas, enabling efficient batched rendering with minimal texture bind calls.</p>
+        </div>
+
+        <div class="class-card">
+          <div class="class-header">
+            <span class="class-name">Stitcher</span>
+          </div>
+          <div class="class-meta">Minecraft.Client/Stitcher.h</div>
+          <p class="class-description">Atlas packing algorithm. Takes a set of individual textures with varying dimensions and packs them into a power-of-two atlas texture with minimal wasted space. Uses a bin-packing strategy to arrange sprites, then outputs the final atlas image and a UV coordinate lookup table consumed by <code>StitchedTexture</code>.</p>
+        </div>
+
+        <h3>Texture Pack Implementations</h3>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr><th>Class</th><th>Description</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>AbstractTexturePack</code></td><td>Base class providing shared texture pack logic: metadata parsing, resource path resolution, and fallback handling</td></tr>
+              <tr><td><code>DefaultTexturePack</code></td><td>Ships with the game binary. Reads textures from the compiled-in default asset archive. Always used as the fallback when a custom pack is missing resources</td></tr>
+              <tr><td><code>DLCTexturePack</code></td><td>Loads textures from downloadable content packages on console platforms. Integrates with the platform's DLC/entitlement system to verify ownership before loading</td></tr>
+              <tr><td><code>FileTexturePack</code></td><td>Loads textures from a directory on the file system. Used on the Windows platform for development and custom texture packs</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <footer class="site-footer"><p>LCE Documentation &mdash; Generated for the LCEMP project by notpies</p></footer>
+    </main>
+  </div>
+  <div class="search-overlay" id="search-overlay"><div class="search-modal"><input type="text" class="search-input-large" id="search-input" placeholder="Search documentation..." autocomplete="off"><div class="search-results" id="search-results"></div></div></div>
+  <script src="js/nav.js"></script>
+  <script src="js/search.js"></script>
+</body>
+</html>
